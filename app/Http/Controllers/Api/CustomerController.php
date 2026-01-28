@@ -188,6 +188,7 @@ class CustomerController extends Controller
 
             $validated = $request->validate([
                 'amount' => 'required|numeric|min:0.01',
+                'payment_method' => 'required|string|in:cash,gcash',
             ]);
 
             if ($validated['amount'] > $customer->credit_balance) {
@@ -197,8 +198,24 @@ class CustomerController extends Controller
                 ], 400);
             }
 
+            // Record the payment as a "sale" transaction for tracking
+            \DB::beginTransaction();
+            
+            // Create a payment record (negative sale)
+            $paymentSale = \App\Models\Sale::create([
+                'customer_id' => $customer->id,
+                'total_amount' => -$validated['amount'], // Negative to indicate payment
+                'amount_paid' => $validated['amount'],
+                'change_due' => 0,
+                'payment_method' => 'payment', // Special payment method
+                'sale_date' => now(),
+            ]);
+
+            // Reduce customer credit balance
             $customer->credit_balance -= $validated['amount'];
             $customer->save();
+
+            \DB::commit();
 
             return response()->json([
                 'success' => true,
@@ -207,12 +224,14 @@ class CustomerController extends Controller
             ], 200);
 
         } catch (ValidationException $e) {
+            \DB::rollBack();
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
+            \DB::rollBack();
             return response()->json([
                 'success' => false,
                 'message' => 'Error recording payment',

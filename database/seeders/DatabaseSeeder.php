@@ -10,204 +10,322 @@ use App\Models\Customer;
 class DatabaseSeeder extends Seeder
 {
     /**
-     * Seed the application's database.
-     * 
-     * This seeder creates sample data to test the POS system:
-     * - 5 sample products (beverages and snacks)
-     * - Multiple units per product (piece, box, case)
-     * - 3 sample customers
+     * Seed the application's database with Alquizalas Store inventory
      */
     public function run(): void
     {
-        // Create Sample Products
-        $this->createBeverageProducts();
-        $this->createSnackProducts();
+        $this->command->info('Seeding Alquizalas Store inventory...');
         
-        // Create Sample Customers
+        // Create products from your Excel data
+        $this->createProducts();
+        
+        // Create sample customers
         $this->createCustomers();
+        
+        $this->command->info('Seeding completed!');
     }
 
-    /**
-     * Create beverage products with multiple units
-     */
-    private function createBeverageProducts(): void
+    private function createProducts(): void
     {
-        // Product 1: Coca-Cola 1.5L
-        $cocaCola = Product::create([
-            'name' => 'Coca-Cola 1.5L',
-            'description' => '1.5 Liter Coca-Cola Bottle',
-            'category' => 'Beverages',
-            'base_unit' => 'piece',
-            'stock_quantity' => 480, // 20 cases × 24 pieces
-            'low_stock_threshold' => 50,
-        ]);
+        $products = [
+            // Personal & Health Care (from SMALL PARNA.csv)
+            ['name' => 'SISTERS PANTY LINERS', 'category' => 'Personal & Health Care', 'stock' => 8, 'unit' => 'PACK', 'barcode' => '1001', 'retail' => 100, 'wholesale' => 20],
+            ['name' => 'SISTERS NAPKIN', 'category' => 'Personal & Health Care', 'stock' => 11, 'unit' => 'PACK', 'barcode' => '1002', 'retail' => 30, 'wholesale' => 25],
+            ['name' => 'MODDESS', 'category' => 'Personal & Health Care', 'stock' => 22, 'unit' => 'PACK', 'barcode' => '1003', 'retail' => 7, 'wholesale' => 155.5],
+            ['name' => 'CHARMEE DRY NET', 'category' => 'Personal & Health Care', 'stock' => 21, 'unit' => 'PACK', 'barcode' => '1004', 'retail' => 75, 'wholesale' => 75],
+            ['name' => 'CHARMEE COTTONY ALL NIGHT', 'category' => 'Personal & Health Care', 'stock' => 18, 'unit' => 'PC', 'barcode' => '1005', 'retail' => 10, 'wholesale' => 5.2],
+            ['name' => 'CHARMEE COTTONY', 'category' => 'Personal & Health Care', 'stock' => 10, 'unit' => 'PACK', 'barcode' => '1006', 'retail' => 4, 'wholesale' => 1.9],
+            ['name' => 'HAPPY BABY PANTS (L)', 'category' => 'Personal & Health Care', 'stock' => 11, 'unit' => 'PACK', 'barcode' => '1007', 'retail' => 10, 'wholesale' => 8.25],
+            ['name' => 'HAPPY BABY PANTS (M)', 'category' => 'Personal & Health Care', 'stock' => 21, 'unit' => 'PACK', 'barcode' => '1008', 'retail' => 10, 'wholesale' => 7.41],
+            ['name' => 'SALBUTAMOL TAB', 'category' => 'Personal & Health Care', 'stock' => 198, 'unit' => 'PC', 'barcode' => '1009', 'retail' => 10, 'wholesale' => 8],
+            ['name' => 'CETIRIZINE', 'category' => 'Personal & Health Care', 'stock' => 118, 'unit' => 'PC', 'barcode' => '1010', 'retail' => 6, 'wholesale' => 3],
+            ['name' => 'TETRACYCLINE (TAMBAL SAMAD)', 'category' => 'Personal & Health Care', 'stock' => 77, 'unit' => 'PC', 'barcode' => '1011', 'retail' => 10, 'wholesale' => 7],
+            ['name' => 'MEFENAMIC ACID 500mg', 'category' => 'Personal & Health Care', 'stock' => 143, 'unit' => 'PC', 'barcode' => '1012', 'retail' => 6, 'wholesale' => 3],
+            ['name' => 'AMOXICILLIN', 'category' => 'Personal & Health Care', 'stock' => 158, 'unit' => 'PC', 'barcode' => '1013', 'retail' => 6, 'wholesale' => 3],
+            ['name' => 'MEFENAMIC PONTAIN 500mg', 'category' => 'Personal & Health Care', 'stock' => 98, 'unit' => 'PC', 'barcode' => '1014', 'retail' => 10, 'wholesale' => 5],
+            ['name' => 'KREMIL-S', 'category' => 'Personal & Health Care', 'stock' => 88, 'unit' => 'PC', 'barcode' => '1015', 'retail' => 10, 'wholesale' => 6.5],
+            ['name' => 'LOMOTIL', 'category' => 'Personal & Health Care', 'stock' => 132, 'unit' => 'PC', 'barcode' => '1016', 'retail' => 15, 'wholesale' => 9],
+            ['name' => 'NEOZEP FORTE', 'category' => 'Personal & Health Care', 'stock' => 186, 'unit' => 'PC', 'barcode' => '1017', 'retail' => 10, 'wholesale' => 6.5],
+            ['name' => 'PONSTAN 500mg', 'category' => 'Personal & Health Care', 'stock' => 269, 'unit' => 'PC', 'barcode' => '1018', 'retail' => 30, 'wholesale' => 21],
+            ['name' => 'REXIDOL FORTE', 'category' => 'Personal & Health Care', 'stock' => 319, 'unit' => 'PC', 'barcode' => '1019', 'retail' => 10, 'wholesale' => 5.5],
+            ['name' => 'SARIDON', 'category' => 'Personal & Health Care', 'stock' => 379, 'unit' => 'PC', 'barcode' => '1020', 'retail' => 10, 'wholesale' => 6.5],
+            ['name' => 'TUSERAN FORTE', 'category' => 'Personal & Health Care', 'stock' => 155, 'unit' => 'PC', 'barcode' => '1021', 'retail' => 13, 'wholesale' => 9.5],
+            ['name' => 'SOLMUX', 'category' => 'Personal & Health Care', 'stock' => 148, 'unit' => 'PC', 'barcode' => '1022', 'retail' => 15, 'wholesale' => 10],
+            ['name' => 'FLANAX FORTE 500mg', 'category' => 'Personal & Health Care', 'stock' => 359, 'unit' => 'PC', 'barcode' => '1023', 'retail' => 30, 'wholesale' => 22],
+            ['name' => 'GARDAN 500mg', 'category' => 'Personal & Health Care', 'stock' => 284, 'unit' => 'PC', 'barcode' => '1024', 'retail' => 26, 'wholesale' => 22],
+            ['name' => 'IMODIUM', 'category' => 'Personal & Health Care', 'stock' => 218, 'unit' => 'PC', 'barcode' => '1025', 'retail' => 20, 'wholesale' => 14],
+            ['name' => 'DOLFENAL 500mg', 'category' => 'Personal & Health Care', 'stock' => 387, 'unit' => 'PC', 'barcode' => '1026', 'retail' => 30, 'wholesale' => 22],
+            ['name' => 'DAITAB', 'category' => 'Personal & Health Care', 'stock' => 118, 'unit' => 'PC', 'barcode' => '1027', 'retail' => 10, 'wholesale' => 7.5],
+            ['name' => 'DECOLGEN FORTE 500mg', 'category' => 'Personal & Health Care', 'stock' => 158, 'unit' => 'PC', 'barcode' => '1028', 'retail' => 8, 'wholesale' => 5.5],
+            ['name' => 'ALAXAZAN FR', 'category' => 'Personal & Health Care', 'stock' => 59, 'unit' => 'PC', 'barcode' => '1029', 'retail' => 10, 'wholesale' => 8],
+            ['name' => 'BIOFLU', 'category' => 'Personal & Health Care', 'stock' => 98, 'unit' => 'PC', 'barcode' => '1030', 'retail' => 10, 'wholesale' => 7],
+            ['name' => 'BUSCOPAN', 'category' => 'Personal & Health Care', 'stock' => 388, 'unit' => 'PC', 'barcode' => '1031', 'retail' => 30, 'wholesale' => 24],
+            ['name' => 'BIOGESIC', 'category' => 'Personal & Health Care', 'stock' => 269, 'unit' => 'PC', 'barcode' => '1032', 'retail' => 10, 'wholesale' => 5],
+            ['name' => 'FAST RELAX', 'category' => 'Personal & Health Care', 'stock' => 252, 'unit' => 'PC', 'barcode' => '1033', 'retail' => 11, 'wholesale' => 8],
+            ['name' => 'PURE MINERAL OIL', 'category' => 'Personal & Health Care', 'stock' => 10, 'unit' => 'BTL', 'barcode' => '1034', 'retail' => 20, 'wholesale' => 14],
+            ['name' => 'TENDER CARE POWDER', 'category' => 'Personal & Health Care', 'stock' => 12, 'unit' => 'BTL', 'barcode' => '1035', 'retail' => 25, 'wholesale' => 20.025],
+            ['name' => 'WIFE COTTON', 'category' => 'Personal & Health Care', 'stock' => 10, 'unit' => 'BTL', 'barcode' => '1036', 'retail' => 8, 'wholesale' => 5],
+            ['name' => 'HAPPY COTTON', 'category' => 'Personal & Health Care', 'stock' => 8, 'unit' => 'BTL', 'barcode' => '1037', 'retail' => 8, 'wholesale' => 5],
+            ['name' => 'ACIETE DE MANZANILLA', 'category' => 'Personal & Health Care', 'stock' => 12, 'unit' => 'BTL', 'barcode' => '1038', 'retail' => 16, 'wholesale' => 13.8],
+            ['name' => 'EFFICASCENT OIL', 'category' => 'Personal & Health Care', 'stock' => 11, 'unit' => 'BTL', 'barcode' => '1039', 'retail' => 25, 'wholesale' => 19],
+            ['name' => 'EFFICASCENT OIL 25ml', 'category' => 'Personal & Health Care', 'stock' => 9, 'unit' => 'BTL', 'barcode' => '1040', 'retail' => 35, 'wholesale' => 31.25],
+            ['name' => 'OMEGA PAIN KILLER 15ml', 'category' => 'Personal & Health Care', 'stock' => 3, 'unit' => 'BTL', 'barcode' => '1041', 'retail' => 25, 'wholesale' => 19.75],
+            ['name' => 'OMEGA PAIN KILLER 30ml', 'category' => 'Personal & Health Care', 'stock' => 9, 'unit' => 'BTL', 'barcode' => '1042', 'retail' => 38, 'wholesale' => 33.25],
+            ['name' => 'GREEN CROSS ALCOHOL', 'category' => 'Personal & Health Care', 'stock' => 4, 'unit' => 'BTL', 'barcode' => '1043', 'retail' => 25, 'wholesale' => 21],
+            ['name' => 'ORAL B TOOTHBRUSH', 'category' => 'Personal & Health Care', 'stock' => 11, 'unit' => 'PC', 'barcode' => '1044', 'retail' => 25, 'wholesale' => 18.22],
+            ['name' => 'COLGATE TOOTHBRUSH(CHILD)', 'category' => 'Personal & Health Care', 'stock' => 10, 'unit' => 'PC', 'barcode' => '1045', 'retail' => 20, 'wholesale' => 14.38],
+            ['name' => 'EAGLE TOOTHBRUSH', 'category' => 'Personal & Health Care', 'stock' => 11, 'unit' => 'PACK', 'barcode' => '1046', 'retail' => 15, 'wholesale' => 15],
+            ['name' => 'COLGATE RED TWIN PACK', 'category' => 'Personal & Health Care', 'stock' => 22, 'unit' => 'PACK', 'barcode' => '1047', 'retail' => 10, 'wholesale' => 7.76],
+            ['name' => 'COLGATE CHARCOAL', 'category' => 'Personal & Health Care', 'stock' => 22, 'unit' => 'PACK', 'barcode' => '1048', 'retail' => 12, 'wholesale' => 10.27],
+            ['name' => 'CLOSE UP RED', 'category' => 'Personal & Health Care', 'stock' => 24, 'unit' => 'PACK', 'barcode' => '1049', 'retail' => 9, 'wholesale' => 9],
+            ['name' => 'REXONA PASSION', 'category' => 'Personal & Health Care', 'stock' => 23, 'unit' => 'PACK', 'barcode' => '1050', 'retail' => 10, 'wholesale' => 8],
+            ['name' => 'NIVEA COOL DEO LOTION', 'category' => 'Personal & Health Care', 'stock' => 10, 'unit' => 'PACK', 'barcode' => '1051', 'retail' => 10, 'wholesale' => 8],
+            ['name' => 'NIVEA DEO LOTION', 'category' => 'Personal & Health Care', 'stock' => 22, 'unit' => 'PACK', 'barcode' => '1052', 'retail' => 10, 'wholesale' => 8],
+            ['name' => 'PALMOLIVE SOAP', 'category' => 'Personal & Health Care', 'stock' => 21, 'unit' => 'PACK', 'barcode' => '1053', 'retail' => 18, 'wholesale' => 13.571],
+            ['name' => 'SILKA GREEN/ORANGE', 'category' => 'Personal & Health Care', 'stock' => 20, 'unit' => 'BAR', 'barcode' => '1054', 'retail' => 25, 'wholesale' => 22.25],
+            ['name' => 'SAFEGUARD', 'category' => 'Personal & Health Care', 'stock' => 20, 'unit' => 'BAR', 'barcode' => '1055', 'retail' => 24, 'wholesale' => 18.6],
+            ['name' => 'BOGANYANA', 'category' => 'Personal & Health Care', 'stock' => 18, 'unit' => 'PACK', 'barcode' => '1056', 'retail' => 10, 'wholesale' => 10],
+            ['name' => 'TAWAS', 'category' => 'Personal & Health Care', 'stock' => 10, 'unit' => 'PC', 'barcode' => '1057', 'retail' => 12, 'wholesale' => 12],
+            ['name' => 'BIODERM COOLING SOAP', 'category' => 'Personal & Health Care', 'stock' => 20, 'unit' => 'PC', 'barcode' => '1058', 'retail' => 22, 'wholesale' => 16.7],
+            ['name' => 'BIODERM SOAP', 'category' => 'Personal & Health Care', 'stock' => 20, 'unit' => 'PC', 'barcode' => '1059', 'retail' => 20, 'wholesale' => 15.9],
+            ['name' => 'SILKA WHITENING SOAP', 'category' => 'Personal & Health Care', 'stock' => 14, 'unit' => 'PC', 'barcode' => '1060', 'retail' => 30, 'wholesale' => 24],
+            ['name' => 'KINGSEVER RAZOR', 'category' => 'Personal & Health Care', 'stock' => 23, 'unit' => 'PC', 'barcode' => '1061', 'retail' => 15, 'wholesale' => 24],
+            ['name' => 'HAIR COLOR', 'category' => 'Personal & Health Care', 'stock' => 8, 'unit' => 'BOX', 'barcode' => '1062', 'retail' => 25, 'wholesale' => 10],
+            ['name' => 'HAIR BLACKER', 'category' => 'Personal & Health Care', 'stock' => 23, 'unit' => 'PACK', 'barcode' => '1063', 'retail' => 10, 'wholesale' => 24],
 
-        // Coca-Cola sold as individual piece (retail)
-        ProductUnit::create([
-            'product_id' => $cocaCola->id,
-            'unit_name' => 'Piece',
-            'barcode' => '4800888100016',
-            'price' => 65.00,
-            'price_type' => 'retail',
-            'conversion_factor' => 1, // 1 piece = 1 base unit
-        ]);
+            // Groceries (from SARI2X.csv)
+            ['name' => 'ARIEL', 'category' => 'Groceries', 'stock' => 6, 'unit' => 'PACK', 'barcode' => '2001', 'retail' => 40, 'wholesale' => 30],
+            ['name' => 'SURF CHERRY BLOSSOM', 'category' => 'Groceries', 'stock' => 18, 'unit' => 'PACK', 'barcode' => '2002', 'retail' => 35, 'wholesale' => 28],
+            ['name' => 'SURF', 'category' => 'Groceries', 'stock' => 11, 'unit' => 'PACK', 'barcode' => '2003', 'retail' => 40, 'wholesale' => 30],
+            ['name' => 'CHAMPION', 'category' => 'Groceries', 'stock' => 22, 'unit' => 'PACK', 'barcode' => '2004', 'retail' => 40, 'wholesale' => 30],
+            ['name' => 'TIDE', 'category' => 'Groceries', 'stock' => 9, 'unit' => 'PACK', 'barcode' => '2005', 'retail' => 40, 'wholesale' => 30],
+            ['name' => 'PRIDE', 'category' => 'Groceries', 'stock' => 11, 'unit' => 'PACK', 'barcode' => '2006', 'retail' => 30, 'wholesale' => 24],
+            ['name' => 'JOY', 'category' => 'Groceries', 'stock' => 10, 'unit' => 'BTL', 'barcode' => '2007', 'retail' => 16, 'wholesale' => 12],
+            ['name' => 'ZONROX', 'category' => 'Groceries', 'stock' => 2, 'unit' => 'BTL', 'barcode' => '2008', 'retail' => 20, 'wholesale' => 15],
+            ['name' => 'SUNSILK', 'category' => 'Groceries', 'stock' => 23, 'unit' => 'PACK', 'barcode' => '2009', 'retail' => 6, 'wholesale' => 5],
+            ['name' => 'PALMOLIVE', 'category' => 'Groceries', 'stock' => 22, 'unit' => 'PACK', 'barcode' => '2010', 'retail' => 6, 'wholesale' => 5],
+            ['name' => 'REJOICE', 'category' => 'Groceries', 'stock' => 24, 'unit' => 'PACK', 'barcode' => '2011', 'retail' => 6, 'wholesale' => 5],
+            ['name' => 'DOVE', 'category' => 'Groceries', 'stock' => 24, 'unit' => 'PACK', 'barcode' => '2012', 'retail' => 7, 'wholesale' => 6],
+            ['name' => 'CREAMSILK', 'category' => 'Groceries', 'stock' => 23, 'unit' => 'PACK', 'barcode' => '2013', 'retail' => 7, 'wholesale' => 6],
+            ['name' => 'HEAD & SHOULDERS', 'category' => 'Groceries', 'stock' => 11, 'unit' => 'PACK', 'barcode' => '2014', 'retail' => 7, 'wholesale' => 6],
+            ['name' => 'GARD', 'category' => 'Groceries', 'stock' => 21, 'unit' => 'PACK', 'barcode' => '2015', 'retail' => 6, 'wholesale' => 5],
+            ['name' => 'CLEAR', 'category' => 'Groceries', 'stock' => 22, 'unit' => 'PACK', 'barcode' => '2016', 'retail' => 6, 'wholesale' => 5],
+            ['name' => 'MIGHTY (RED)', 'category' => 'Groceries', 'stock' => 10, 'unit' => 'PACK', 'barcode' => '2017', 'retail' => 70, 'wholesale' => 60],
+            ['name' => 'MIGHTY (GREEN)', 'category' => 'Groceries', 'stock' => 7, 'unit' => 'PACK', 'barcode' => '2018', 'retail' => 70, 'wholesale' => 60],
+            ['name' => 'MARLBORO (RED)', 'category' => 'Groceries', 'stock' => 9, 'unit' => 'PACK', 'barcode' => '2019', 'retail' => 150, 'wholesale' => 140],
+            ['name' => 'FORTUNE (RED)', 'category' => 'Groceries', 'stock' => 7, 'unit' => 'PACK', 'barcode' => '2020', 'retail' => 120, 'wholesale' => 110],
+            ['name' => 'CAMEL', 'category' => 'Groceries', 'stock' => 5, 'unit' => 'PACK', 'barcode' => '2021', 'retail' => 150, 'wholesale' => 140],
+            ['name' => 'HOPE', 'category' => 'Groceries', 'stock' => 9, 'unit' => 'PACK', 'barcode' => '2022', 'retail' => 120, 'wholesale' => 110],
+            ['name' => 'WINSTON (RED)', 'category' => 'Groceries', 'stock' => 10, 'unit' => 'PACK', 'barcode' => '2023', 'retail' => 120, 'wholesale' => 110],
+            ['name' => 'MARLBORO (BLACK)', 'category' => 'Groceries', 'stock' => 4, 'unit' => 'PACK', 'barcode' => '2024', 'retail' => 150, 'wholesale' => 140],
+            ['name' => 'LUCKY STRIKE', 'category' => 'Groceries', 'stock' => 9, 'unit' => 'PACK', 'barcode' => '2025', 'retail' => 120, 'wholesale' => 110],
+            ['name' => 'FORTUNE (GREEN)', 'category' => 'Groceries', 'stock' => 5, 'unit' => 'PACK', 'barcode' => '2026', 'retail' => 120, 'wholesale' => 110],
+            ['name' => 'SUPER KING', 'category' => 'Groceries', 'stock' => 1, 'unit' => 'PACK', 'barcode' => '2027', 'retail' => 45, 'wholesale' => 35],
+            ['name' => 'LIGO (RED)', 'category' => 'Groceries', 'stock' => 11, 'unit' => 'CAN', 'barcode' => '2028', 'retail' => 30, 'wholesale' => 25],
+            ['name' => 'LIGO (GREEN)', 'category' => 'Groceries', 'stock' => 12, 'unit' => 'CAN', 'barcode' => '2029', 'retail' => 30, 'wholesale' => 25],
+            ['name' => 'YOUNGS TOWN', 'category' => 'Groceries', 'stock' => 8, 'unit' => 'CAN', 'barcode' => '2030', 'retail' => 28, 'wholesale' => 23],
+            ['name' => 'MEGA SARDINES (GREEN)', 'category' => 'Groceries', 'stock' => 8, 'unit' => 'CAN', 'barcode' => '2031', 'retail' => 28, 'wholesale' => 23],
+            ['name' => '555 SARDINES (ORANGE)', 'category' => 'Groceries', 'stock' => 9, 'unit' => 'CAN', 'barcode' => '2032', 'retail' => 27, 'wholesale' => 22],
+            ['name' => 'ARGENTINA', 'category' => 'Groceries', 'stock' => 10, 'unit' => 'CAN', 'barcode' => '2033', 'retail' => 35, 'wholesale' => 30],
+            ['name' => 'CENTURY TUNA', 'category' => 'Groceries', 'stock' => 11, 'unit' => 'CAN', 'barcode' => '2034', 'retail' => 38, 'wholesale' => 33],
+            ['name' => '555 TUNA (BLUE)', 'category' => 'Groceries', 'stock' => 11, 'unit' => 'CAN', 'barcode' => '2035', 'retail' => 30, 'wholesale' => 25],
+            ['name' => 'CDO', 'category' => 'Groceries', 'stock' => 9, 'unit' => 'CAN', 'barcode' => '2036', 'retail' => 33, 'wholesale' => 28],
+            ['name' => 'STAR CORNED BEEF', 'category' => 'Groceries', 'stock' => 9, 'unit' => 'CAN', 'barcode' => '2037', 'retail' => 33, 'wholesale' => 28],
+            ['name' => 'HOLIDAY', 'category' => 'Groceries', 'stock' => 1, 'unit' => 'CAN', 'barcode' => '2038', 'retail' => 35, 'wholesale' => 30],
+            ['name' => 'PUREFOODS', 'category' => 'Groceries', 'stock' => 0, 'unit' => 'CAN', 'barcode' => '2039', 'retail' => 45, 'wholesale' => 40],
+            ['name' => 'ULAM', 'category' => 'Groceries', 'stock' => 9, 'unit' => 'CAN', 'barcode' => '2040', 'retail' => 25, 'wholesale' => 20],
+            ['name' => 'HOT & SPICY', 'category' => 'Groceries', 'stock' => 8, 'unit' => 'CAN', 'barcode' => '2041', 'retail' => 30, 'wholesale' => 25],
+            ['name' => 'ALASKA (BIG)', 'category' => 'Groceries', 'stock' => 11, 'unit' => 'CAN', 'barcode' => '2042', 'retail' => 50, 'wholesale' => 45],
+            ['name' => 'COWBELL', 'category' => 'Groceries', 'stock' => 9, 'unit' => 'CAN', 'barcode' => '2043', 'retail' => 50, 'wholesale' => 45],
+            ['name' => 'ANGEL', 'category' => 'Groceries', 'stock' => 10, 'unit' => 'CAN', 'barcode' => '2044', 'retail' => 45, 'wholesale' => 40],
+            ['name' => 'ALASKA (SMALL)', 'category' => 'Groceries', 'stock' => 11, 'unit' => 'CAN', 'barcode' => '2045', 'retail' => 20, 'wholesale' => 15],
+            ['name' => 'ALASKA CONDENSED', 'category' => 'Groceries', 'stock' => 12, 'unit' => 'CAN', 'barcode' => '2046', 'retail' => 35, 'wholesale' => 30],
+            ['name' => 'LIBERTY', 'category' => 'Groceries', 'stock' => 10, 'unit' => 'CAN', 'barcode' => '2047', 'retail' => 50, 'wholesale' => 45],
+            ['name' => 'KOPIKO (BLACK)', 'category' => 'Groceries', 'stock' => 28, 'unit' => 'PACK', 'barcode' => '2048', 'retail' => 8, 'wholesale' => 7],
+            ['name' => 'KOPIKO (BROWN)', 'category' => 'Groceries', 'stock' => 29, 'unit' => 'PACK', 'barcode' => '2049', 'retail' => 8, 'wholesale' => 7],
+            ['name' => 'KOPIKO (WHITE)', 'category' => 'Groceries', 'stock' => 28, 'unit' => 'PACK', 'barcode' => '2050', 'retail' => 9, 'wholesale' => 8],
+            ['name' => 'NESCAFE', 'category' => 'Groceries', 'stock' => 28, 'unit' => 'PACK', 'barcode' => '2051', 'retail' => 8, 'wholesale' => 7],
+            ['name' => 'SAN MIG COFFEE (SUGAR FREE)', 'category' => 'Groceries', 'stock' => 23, 'unit' => 'PACK', 'barcode' => '2052', 'retail' => 8, 'wholesale' => 7],
+            ['name' => 'SAN MIG COFFEE (ORIGINAL)', 'category' => 'Groceries', 'stock' => 29, 'unit' => 'PACK', 'barcode' => '2053', 'retail' => 8, 'wholesale' => 7],
+            ['name' => 'GREAT TASTE (WHITE)', 'category' => 'Groceries', 'stock' => 29, 'unit' => 'PACK', 'barcode' => '2054', 'retail' => 8, 'wholesale' => 7],
+            ['name' => 'GREAT TASTE (ORIGINAL)', 'category' => 'Groceries', 'stock' => 28, 'unit' => 'PACK', 'barcode' => '2055', 'retail' => 8, 'wholesale' => 7],
+            ['name' => 'BEAR BRAND', 'category' => 'Groceries', 'stock' => 29, 'unit' => 'PACK', 'barcode' => '2056', 'retail' => 10, 'wholesale' => 9],
+            ['name' => 'MILO', 'category' => 'Groceries', 'stock' => 28, 'unit' => 'PACK', 'barcode' => '2057', 'retail' => 10, 'wholesale' => 9],
+            ['name' => 'ENERGEN', 'category' => 'Groceries', 'stock' => 29, 'unit' => 'PACK', 'barcode' => '2058', 'retail' => 9, 'wholesale' => 8],
+            ['name' => 'DATU PUTI (BIG)', 'category' => 'Groceries', 'stock' => 4, 'unit' => 'BTL', 'barcode' => '2059', 'retail' => 25, 'wholesale' => 20],
+            ['name' => 'DATU PUTI (SMALL)', 'category' => 'Groceries', 'stock' => 3, 'unit' => 'BTL', 'barcode' => '2060', 'retail' => 15, 'wholesale' => 12],
+            ['name' => 'SILVER SWAN (BIG)', 'category' => 'Groceries', 'stock' => 2, 'unit' => 'BTL', 'barcode' => '2061', 'retail' => 25, 'wholesale' => 20],
+            ['name' => 'SILVER SWAN (SMALL)', 'category' => 'Groceries', 'stock' => 2, 'unit' => 'BTL', 'barcode' => '2062', 'retail' => 15, 'wholesale' => 12],
+            ['name' => 'MANG TOMAS', 'category' => 'Groceries', 'stock' => 2, 'unit' => 'BTL', 'barcode' => '2063', 'retail' => 35, 'wholesale' => 30],
+            ['name' => 'UFC', 'category' => 'Groceries', 'stock' => 2, 'unit' => 'BTL', 'barcode' => '2064', 'retail' => 20, 'wholesale' => 15],
+            ['name' => 'MAGIC SARAP', 'category' => 'Groceries', 'stock' => 23, 'unit' => 'PACK', 'barcode' => '2065', 'retail' => 4, 'wholesale' => 3],
+            ['name' => 'AJINOMOTO', 'category' => 'Groceries', 'stock' => 23, 'unit' => 'PACK', 'barcode' => '2066', 'retail' => 4, 'wholesale' => 3],
+            ['name' => 'G-POWDER', 'category' => 'Groceries', 'stock' => 23, 'unit' => 'PACK', 'barcode' => '2067', 'retail' => 3, 'wholesale' => 2],
+            ['name' => 'WHITE SUGAR', 'category' => 'Groceries', 'stock' => 5, 'unit' => 'KILO', 'barcode' => '2068', 'retail' => 60, 'wholesale' => 55],
+            ['name' => 'BROWN SUGAR', 'category' => 'Groceries', 'stock' => 3, 'unit' => 'KILO', 'barcode' => '2069', 'retail' => 55, 'wholesale' => 50],
+            ['name' => 'SALT', 'category' => 'Groceries', 'stock' => 5, 'unit' => 'KILO', 'barcode' => '2070', 'retail' => 20, 'wholesale' => 15],
+            ['name' => 'LUCKY ME (CHICKEN)', 'category' => 'Groceries', 'stock' => 23, 'unit' => 'PACK', 'barcode' => '2071', 'retail' => 12, 'wholesale' => 10],
+            ['name' => 'LUCKY ME (BEEF)', 'category' => 'Groceries', 'stock' => 21, 'unit' => 'PACK', 'barcode' => '2072', 'retail' => 12, 'wholesale' => 10],
+            ['name' => 'PAYLESS', 'category' => 'Groceries', 'stock' => 24, 'unit' => 'PACK', 'barcode' => '2073', 'retail' => 11, 'wholesale' => 9],
+            ['name' => 'QUICK CHOW', 'category' => 'Groceries', 'stock' => 23, 'unit' => 'PACK', 'barcode' => '2074', 'retail' => 12, 'wholesale' => 10],
+            ['name' => 'LUCKY ME (KALAMANSI)', 'category' => 'Groceries', 'stock' => 22, 'unit' => 'PACK', 'barcode' => '2075', 'retail' => 10, 'wholesale' => 8],
+            ['name' => 'LUCKY ME (CHILI MANSI)', 'category' => 'Groceries', 'stock' => 23, 'unit' => 'PACK', 'barcode' => '2076', 'retail' => 10, 'wholesale' => 8],
+            ['name' => 'LUCKY ME (SPICY)', 'category' => 'Groceries', 'stock' => 23, 'unit' => 'PACK', 'barcode' => '2077', 'retail' => 10, 'wholesale' => 8],
+            ['name' => 'PAYLESS (KALAMANSI)', 'category' => 'Groceries', 'stock' => 24, 'unit' => 'PACK', 'barcode' => '2078', 'retail' => 9, 'wholesale' => 7],
+            ['name' => 'CRACKLINGS', 'category' => 'Groceries', 'stock' => 2, 'unit' => 'PACK', 'barcode' => '2079', 'retail' => 20, 'wholesale' => 15],
+            ['name' => 'PIATTOS', 'category' => 'Groceries', 'stock' => 3, 'unit' => 'PACK', 'barcode' => '2080', 'retail' => 18, 'wholesale' => 14],
+            ['name' => 'NOVA', 'category' => 'Groceries', 'stock' => 3, 'unit' => 'PACK', 'barcode' => '2081', 'retail' => 18, 'wholesale' => 14],
+            ['name' => 'CHIPPY', 'category' => 'Groceries', 'stock' => 4, 'unit' => 'PACK', 'barcode' => '2082', 'retail' => 15, 'wholesale' => 12],
+            ['name' => 'MR. CHIPS', 'category' => 'Groceries', 'stock' => 2, 'unit' => 'PACK', 'barcode' => '2083', 'retail' => 15, 'wholesale' => 12],
+            ['name' => 'PUSO', 'category' => 'Groceries', 'stock' => 4, 'unit' => 'PACK', 'barcode' => '2084', 'retail' => 10, 'wholesale' => 8],
+            ['name' => 'NISSIN', 'category' => 'Groceries', 'stock' => 1, 'unit' => 'PACK', 'barcode' => '2085', 'retail' => 15, 'wholesale' => 12],
+            ['name' => 'NAGARAYA', 'category' => 'Groceries', 'stock' => 3, 'unit' => 'PACK', 'barcode' => '2086', 'retail' => 10, 'wholesale' => 8],
+            ['name' => 'GROWING', 'category' => 'Groceries', 'stock' => 2, 'unit' => 'PACK', 'barcode' => '2087', 'retail' => 10, 'wholesale' => 8],
+            ['name' => 'HAPPY', 'category' => 'Groceries', 'stock' => 2, 'unit' => 'PACK', 'barcode' => '2088', 'retail' => 8, 'wholesale' => 6],
+            ['name' => 'HI-RO', 'category' => 'Groceries', 'stock' => 1, 'unit' => 'PACK', 'barcode' => '2089', 'retail' => 10, 'wholesale' => 8],
+            ['name' => 'FITA', 'category' => 'Groceries', 'stock' => 2, 'unit' => 'PACK', 'barcode' => '2090', 'retail' => 10, 'wholesale' => 8],
+            ['name' => 'SKYFLAKES', 'category' => 'Groceries', 'stock' => 3, 'unit' => 'PACK', 'barcode' => '2091', 'retail' => 12, 'wholesale' => 10],
+            ['name' => 'REBISCO', 'category' => 'Groceries', 'stock' => 2, 'unit' => 'PACK', 'barcode' => '2092', 'retail' => 10, 'wholesale' => 8],
+            ['name' => 'BREAD STIX', 'category' => 'Groceries', 'stock' => 3, 'unit' => 'PACK', 'barcode' => '2093', 'retail' => 8, 'wholesale' => 6],
+            ['name' => 'STICK-O', 'category' => 'Groceries', 'stock' => 1, 'unit' => 'PACK', 'barcode' => '2094', 'retail' => 15, 'wholesale' => 12],
+            ['name' => 'PILLOWS', 'category' => 'Groceries', 'stock' => 4, 'unit' => 'PACK', 'barcode' => '2095', 'retail' => 10, 'wholesale' => 8],
+            ['name' => 'CHOCO-CHOCO', 'category' => 'Groceries', 'stock' => 2, 'unit' => 'PACK', 'barcode' => '2096', 'retail' => 15, 'wholesale' => 12],
+            ['name' => 'SUPERMAN', 'category' => 'Groceries', 'stock' => 2, 'unit' => 'PACK', 'barcode' => '2097', 'retail' => 15, 'wholesale' => 12],
+            ['name' => 'MAXX', 'category' => 'Groceries', 'stock' => 10, 'unit' => 'PACK', 'barcode' => '2098', 'retail' => 2, 'wholesale' => 1],
+            ['name' => 'FRUTOS', 'category' => 'Groceries', 'stock' => 9, 'unit' => 'PACK', 'barcode' => '2099', 'retail' => 2, 'wholesale' => 1],
+            ['name' => 'PIGPIE', 'category' => 'Groceries', 'stock' => 0, 'unit' => 'PACK', 'barcode' => '2100', 'retail' => 5, 'wholesale' => 4],
+            ['name' => 'HOPIA', 'category' => 'Groceries', 'stock' => 0, 'unit' => 'PACK', 'barcode' => '2101', 'retail' => 5, 'wholesale' => 4],
 
-        // Coca-Cola sold by the case (wholesale)
-        ProductUnit::create([
-            'product_id' => $cocaCola->id,
-            'unit_name' => 'Case',
-            'barcode' => '14800888100013',
-            'price' => 1440.00, // 24 pieces × ₱60 each
-            'price_type' => 'wholesale',
-            'conversion_factor' => 24, // 1 case = 24 pieces
-        ]);
+            // Agri Products (from AGRI PRODUCTS.csv)
+            ['name' => 'ROUND-UP', 'category' => 'Agri Products', 'stock' => -6, 'unit' => 'PACK', 'barcode' => '3001', 'retail' => 130, 'wholesale' => 65],
+            ['name' => 'FORCE', 'category' => 'Agri Products', 'stock' => 1, 'unit' => 'BTL', 'barcode' => '3002', 'retail' => 500, 'wholesale' => 150],
+            ['name' => 'BRODAN', 'category' => 'Agri Products', 'stock' => 11, 'unit' => 'BTL', 'barcode' => '3003', 'retail' => 450, 'wholesale' => 145],
+            ['name' => 'PASTURE', 'category' => 'Agri Products', 'stock' => -1, 'unit' => 'BTL', 'barcode' => '3004', 'retail' => 550, 'wholesale' => 450],
+            ['name' => 'ALMIX', 'category' => 'Agri Products', 'stock' => 2, 'unit' => 'BTL', 'barcode' => '3005', 'retail' => 40, 'wholesale' => 38],
+            ['name' => 'STRIKER', 'category' => 'Agri Products', 'stock' => 3, 'unit' => 'BTL', 'barcode' => '3006', 'retail' => 60, 'wholesale' => 55],
+            ['name' => 'RACUMIN', 'category' => 'Agri Products', 'stock' => 2, 'unit' => 'PACK', 'barcode' => '3007', 'retail' => 65, 'wholesale' => 60],
+            ['name' => 'ATRAZINE', 'category' => 'Agri Products', 'stock' => 2, 'unit' => 'PACK', 'barcode' => '3008', 'retail' => 300, 'wholesale' => 280],
+            ['name' => 'SEVIN', 'category' => 'Agri Products', 'stock' => 0, 'unit' => 'PACK', 'barcode' => '3009', 'retail' => 50, 'wholesale' => 45],
+            ['name' => 'YANET', 'category' => 'Agri Products', 'stock' => 1, 'unit' => 'PACK', 'barcode' => '3010', 'retail' => 50, 'wholesale' => 45],
+            ['name' => 'SILI', 'category' => 'Agri Products', 'stock' => 8, 'unit' => 'PACK', 'barcode' => '3011', 'retail' => 50, 'wholesale' => 45],
+            ['name' => 'KALABASA', 'category' => 'Agri Products', 'stock' => 8, 'unit' => 'PACK', 'barcode' => '3012', 'retail' => 50, 'wholesale' => 45],
+            ['name' => 'PECHAY', 'category' => 'Agri Products', 'stock' => 7, 'unit' => 'PACK', 'barcode' => '3013', 'retail' => 50, 'wholesale' => 45],
+            ['name' => 'TALONG', 'category' => 'Agri Products', 'stock' => 6, 'unit' => 'PACK', 'barcode' => '3014', 'retail' => 50, 'wholesale' => 45],
+            ['name' => 'CAMATIS', 'category' => 'Agri Products', 'stock' => 28, 'unit' => 'PC', 'barcode' => '3015', 'retail' => 22, 'wholesale' => 10],
+            ['name' => 'POT', 'category' => 'Agri Products', 'stock' => 47, 'unit' => 'PC', 'barcode' => '3016', 'retail' => 15, 'wholesale' => 10],
 
-        // Product 2: Royal True Orange 1L
-        $royal = Product::create([
-            'name' => 'Royal True Orange 1L',
-            'description' => '1 Liter Royal Orange Soda',
-            'category' => 'Beverages',
-            'base_unit' => 'piece',
-            'stock_quantity' => 360, // 15 cases × 24 pieces
-            'low_stock_threshold' => 40,
-        ]);
+            // Beverages & Tobacco (from DRINKS.csv)
+            ['name' => 'COBRA (RED)', 'category' => 'Beverages & Tobacco', 'stock' => 4, 'unit' => 'BTL', 'barcode' => '4001', 'retail' => 28, 'wholesale' => 22],
+            ['name' => 'STING', 'category' => 'Beverages & Tobacco', 'stock' => 6, 'unit' => 'BTL', 'barcode' => '4002', 'retail' => 28, 'wholesale' => 22],
+            ['name' => 'COKE 1.5L', 'category' => 'Beverages & Tobacco', 'stock' => 2, 'unit' => 'BTL', 'barcode' => '4003', 'retail' => 90, 'wholesale' => 85],
+            ['name' => 'COKE MISMO', 'category' => 'Beverages & Tobacco', 'stock' => 9, 'unit' => 'BTL', 'barcode' => '4004', 'retail' => 18, 'wholesale' => 15],
+            ['name' => 'ROYAL MISMO', 'category' => 'Beverages & Tobacco', 'stock' => 11, 'unit' => 'BTL', 'barcode' => '4005', 'retail' => 18, 'wholesale' => 15],
+            ['name' => 'SPARKLING', 'category' => 'Beverages & Tobacco', 'stock' => 12, 'unit' => 'BTL', 'barcode' => '4006', 'retail' => 18, 'wholesale' => 15],
+            ['name' => 'MOUNTAIN DEW', 'category' => 'Beverages & Tobacco', 'stock' => 12, 'unit' => 'BTL', 'barcode' => '4007', 'retail' => 18, 'wholesale' => 15],
+            ['name' => 'PEPSI', 'category' => 'Beverages & Tobacco', 'stock' => 12, 'unit' => 'BTL', 'barcode' => '4008', 'retail' => 18, 'wholesale' => 15],
+            ['name' => 'C2 (RED)', 'category' => 'Beverages & Tobacco', 'stock' => 5, 'unit' => 'BTL', 'barcode' => '4009', 'retail' => 18, 'wholesale' => 15],
+            ['name' => 'C2 (GREEN)', 'category' => 'Beverages & Tobacco', 'stock' => 5, 'unit' => 'BTL', 'barcode' => '4010', 'retail' => 18, 'wholesale' => 15],
+            ['name' => 'VITA MILK', 'category' => 'Beverages & Tobacco', 'stock' => 7, 'unit' => 'BTL', 'barcode' => '4011', 'retail' => 30, 'wholesale' => 25],
+            ['name' => 'CHUCKIE', 'category' => 'Beverages & Tobacco', 'stock' => 7, 'unit' => 'BTL', 'barcode' => '4012', 'retail' => 30, 'wholesale' => 25],
+            ['name' => 'QUICK', 'category' => 'Beverages & Tobacco', 'stock' => 10, 'unit' => 'BTL', 'barcode' => '4013', 'retail' => 25, 'wholesale' => 20],
+            ['name' => 'FIT & RIGHT', 'category' => 'Beverages & Tobacco', 'stock' => 1, 'unit' => 'BTL', 'barcode' => '4014', 'retail' => 30, 'wholesale' => 25],
+            ['name' => 'SMART', 'category' => 'Beverages & Tobacco', 'stock' => 8, 'unit' => 'BTL', 'barcode' => '4015', 'retail' => 20, 'wholesale' => 15],
+            ['name' => 'Zesto', 'category' => 'Beverages & Tobacco', 'stock' => 7, 'unit' => 'BTL', 'barcode' => '4016', 'retail' => 10, 'wholesale' => 8],
+            ['name' => 'MINUTE MAID', 'category' => 'Beverages & Tobacco', 'stock' => 5, 'unit' => 'BTL', 'barcode' => '4017', 'retail' => 25, 'wholesale' => 20],
+            ['name' => 'FRUIT JUICE', 'category' => 'Beverages & Tobacco', 'stock' => 10, 'unit' => 'BTL', 'barcode' => '4018', 'retail' => 10, 'wholesale' => 8],
+            ['name' => 'RED HORSE (STALLION)', 'category' => 'Beverages & Tobacco', 'stock' => 20, 'unit' => 'BTL', 'barcode' => '4019', 'retail' => 45, 'wholesale' => 40],
+            ['name' => 'RED HORSE (500)', 'category' => 'Beverages & Tobacco', 'stock' => 8, 'unit' => 'BTL', 'barcode' => '4020', 'retail' => 80, 'wholesale' => 75],
+            ['name' => 'BEER NA BEER', 'category' => 'Beverages & Tobacco', 'stock' => 8, 'unit' => 'BTL', 'barcode' => '4021', 'retail' => 75, 'wholesale' => 70],
+            ['name' => 'LION', 'category' => 'Beverages & Tobacco', 'stock' => 11, 'unit' => 'BTL', 'barcode' => '4022', 'retail' => 35, 'wholesale' => 30],
+            ['name' => 'EMPERADOR LIGHT', 'category' => 'Beverages & Tobacco', 'stock' => 2, 'unit' => 'BTL', 'barcode' => '4023', 'retail' => 100, 'wholesale' => 95],
+            ['name' => 'EMPERADOR', 'category' => 'Beverages & Tobacco', 'stock' => 2, 'unit' => 'BTL', 'barcode' => '4024', 'retail' => 100, 'wholesale' => 95],
+            ['name' => 'TANDUAY', 'category' => 'Beverages & Tobacco', 'stock' => 2, 'unit' => 'BTL', 'barcode' => '4025', 'retail' => 120, 'wholesale' => 115],
+            ['name' => 'KULAFU', 'category' => 'Beverages & Tobacco', 'stock' => 2, 'unit' => 'BTL', 'barcode' => '4026', 'retail' => 100, 'wholesale' => 95],
+            ['name' => 'TANDUAY (SMALL)', 'category' => 'Beverages & Tobacco', 'stock' => 1, 'unit' => 'BTL', 'barcode' => '4027', 'retail' => 60, 'wholesale' => 55],
+            ['name' => 'EMPERADOR (SMALL)', 'category' => 'Beverages & Tobacco', 'stock' => 2, 'unit' => 'BTL', 'barcode' => '4028', 'retail' => 60, 'wholesale' => 55],
+            ['name' => 'GILBEYS GIN', 'category' => 'Beverages & Tobacco', 'stock' => 2, 'unit' => 'BTL', 'barcode' => '4029', 'retail' => 60, 'wholesale' => 55],
+            ['name' => 'GINEBRA', 'category' => 'Beverages & Tobacco', 'stock' => 2, 'unit' => 'BTL', 'barcode' => '4030', 'retail' => 60, 'wholesale' => 55],
+            ['name' => 'NATURE SPRING', 'category' => 'Beverages & Tobacco', 'stock' => 10, 'unit' => 'BTL', 'barcode' => '4031', 'retail' => 15, 'wholesale' => 12],
+            ['name' => 'MIGHTY MENTHOL', 'category' => 'Beverages & Tobacco', 'stock' => 23, 'unit' => 'STICK', 'barcode' => '4032', 'retail' => 5, 'wholesale' => 3.5],
+            ['name' => 'MIGHTY FULL FLAVOR', 'category' => 'Beverages & Tobacco', 'stock' => 55, 'unit' => 'STICK', 'barcode' => '4033', 'retail' => 5, 'wholesale' => 3.5],
+            ['name' => 'MARLBORO REDS', 'category' => 'Beverages & Tobacco', 'stock' => 18, 'unit' => 'STICK', 'barcode' => '4034', 'retail' => 10, 'wholesale' => 7.75],
+            ['name' => 'MARLBORO LIGHTS', 'category' => 'Beverages & Tobacco', 'stock' => 17, 'unit' => 'STICK', 'barcode' => '4035', 'retail' => 10, 'wholesale' => 7.75],
+            ['name' => 'FORTUNE GREEN', 'category' => 'Beverages & Tobacco', 'stock' => 9, 'unit' => 'STICK', 'barcode' => '4036', 'retail' => 7, 'wholesale' => 6.25],
+            ['name' => 'FORTUNE RED', 'category' => 'Beverages & Tobacco', 'stock' => 7, 'unit' => 'STICK', 'barcode' => '4037', 'retail' => 7, 'wholesale' => 6.25],
+            ['name' => 'HOPE LUXURY', 'category' => 'Beverages & Tobacco', 'stock' => 20, 'unit' => 'STICK', 'barcode' => '4038', 'retail' => 8, 'wholesale' => 6.25],
+            ['name' => 'CHESTERFIELD MENTOL WHITE', 'category' => 'Beverages & Tobacco', 'stock' => 13, 'unit' => 'STICK', 'barcode' => '4039', 'retail' => 9, 'wholesale' => 6.3],
+            ['name' => 'MARLBORO KING SIZE', 'category' => 'Beverages & Tobacco', 'stock' => 155, 'unit' => 'STICK', 'barcode' => '4040', 'retail' => 10, 'wholesale' => 7.75],
+            ['name' => 'MARLBORO ICE BLAST', 'category' => 'Beverages & Tobacco', 'stock' => 100, 'unit' => 'STICK', 'barcode' => '4041', 'retail' => 10, 'wholesale' => 7.75],
 
-        ProductUnit::create([
-            'product_id' => $royal->id,
-            'unit_name' => 'Piece',
-            'barcode' => '4800888110015',
-            'price' => 55.00,
-            'price_type' => 'retail',
-            'conversion_factor' => 1,
-        ]);
+            // Frozen Goods (from FROZEN.csv)
+            ['name' => 'GiNALING', 'category' => 'Frozen Goods', 'stock' => 14, 'unit' => 'PCK', 'barcode' => '5001', 'retail' => 30, 'wholesale' => 20],
+            ['name' => 'HOTDOG', 'category' => 'Frozen Goods', 'stock' => 45, 'unit' => 'PCK', 'barcode' => '5002', 'retail' => 30, 'wholesale' => 20],
+            ['name' => 'PORK TOCINO', 'category' => 'Frozen Goods', 'stock' => 24, 'unit' => 'PCK', 'barcode' => '5003', 'retail' => 40, 'wholesale' => 20],
+            ['name' => 'CHICKEN NUGGETS', 'category' => 'Frozen Goods', 'stock' => 20, 'unit' => 'PCK', 'barcode' => '5004', 'retail' => 45, 'wholesale' => 20],
+            ['name' => 'FRENCH FRIES', 'category' => 'Frozen Goods', 'stock' => 28, 'unit' => 'PCK', 'barcode' => '5005', 'retail' => 70, 'wholesale' => 20],
+            ['name' => 'BURGER PATTY', 'category' => 'Frozen Goods', 'stock' => 9, 'unit' => 'PCK', 'barcode' => '5006', 'retail' => 50, 'wholesale' => 20],
+            ['name' => 'SIOMAI', 'category' => 'Frozen Goods', 'stock' => 1, 'unit' => 'PCK', 'barcode' => '5007', 'retail' => 75, 'wholesale' => 20],
+            ['name' => 'PORK & BEANS', 'category' => 'Frozen Goods', 'stock' => 18, 'unit' => 'PCK', 'barcode' => '5008', 'retail' => 40, 'wholesale' => 30],
+            ['name' => 'BOLBOG', 'category' => 'Frozen Goods', 'stock' => 20, 'unit' => 'PCK', 'barcode' => '5009', 'retail' => 40, 'wholesale' => 30],
+            ['name' => 'BACON', 'category' => 'Frozen Goods', 'stock' => 4, 'unit' => 'PCK', 'barcode' => '5010', 'retail' => 70, 'wholesale' => 40],
+            ['name' => 'EMBOTIDO', 'category' => 'Frozen Goods', 'stock' => 1, 'unit' => 'PCK', 'barcode' => '5011', 'retail' => 75, 'wholesale' => 55],
+            ['name' => 'SPRING ROLL', 'category' => 'Frozen Goods', 'stock' => 30, 'unit' => 'PCK', 'barcode' => '5012', 'retail' => 40, 'wholesale' => 20],
+            ['name' => 'TOCINO', 'category' => 'Frozen Goods', 'stock' => 5, 'unit' => 'PCK', 'barcode' => '5013', 'retail' => 40, 'wholesale' => 20],
+            ['name' => 'CHEESE STICK', 'category' => 'Frozen Goods', 'stock' => 4, 'unit' => 'PCK', 'barcode' => '5014', 'retail' => 60, 'wholesale' => 45],
+            ['name' => 'CHICKEN FEET', 'category' => 'Frozen Goods', 'stock' => 9, 'unit' => 'PCK', 'barcode' => '5015', 'retail' => 60, 'wholesale' => 55],
+            ['name' => 'SKINLESS', 'category' => 'Frozen Goods', 'stock' => 50, 'unit' => 'PCK', 'barcode' => '5016', 'retail' => 30, 'wholesale' => 19],
+            ['name' => 'LUMPIA WRAPPER', 'category' => 'Frozen Goods', 'stock' => 25, 'unit' => '', 'barcode' => '5017', 'retail' => 35, 'wholesale' => 30],
+            ['name' => 'CHORIZO', 'category' => 'Frozen Goods', 'stock' => 19, 'unit' => '', 'barcode' => '5018', 'retail' => 30, 'wholesale' => 30],
+            ['name' => 'TEMPURA', 'category' => 'Frozen Goods', 'stock' => 6, 'unit' => '', 'barcode' => '5019', 'retail' => 75, 'wholesale' => 75],
 
-        ProductUnit::create([
-            'product_id' => $royal->id,
-            'unit_name' => 'Case',
-            'barcode' => '14800888110012',
-            'price' => 1200.00,
-            'price_type' => 'wholesale',
-            'conversion_factor' => 24,
-        ]);
+            // Ice Cream (from AICE PRODUCT.csv)
+            ['name' => 'AICE CHOCOLATE', 'category' => 'Ice Cream', 'stock' => 16, 'unit' => '', 'barcode' => '6001', 'retail' => 15, 'wholesale' => 9],
+            ['name' => 'AICE MILK MELON', 'category' => 'Ice Cream', 'stock' => 3, 'unit' => '', 'barcode' => '6002', 'retail' => 15, 'wholesale' => 9],
+            ['name' => 'AICE SWEET CORN', 'category' => 'Ice Cream', 'stock' => 13, 'unit' => '', 'barcode' => '6003', 'retail' => 18, 'wholesale' => 10],
+            ['name' => 'AICE COFFEE', 'category' => 'Ice Cream', 'stock' => 22, 'unit' => '', 'barcode' => '6004', 'retail' => 18, 'wholesale' => 10],
+            ['name' => 'AICE MANGO SLUSH', 'category' => 'Ice Cream', 'stock' => 15, 'unit' => '', 'barcode' => '6005', 'retail' => 25, 'wholesale' => 18],
+            ['name' => 'AICE CHOCOLATE CUP', 'category' => 'Ice Cream', 'stock' => 4, 'unit' => '', 'barcode' => '6006', 'retail' => 25, 'wholesale' => 18],
+            ['name' => 'AICE STRAWBERRY CUP', 'category' => 'Ice Cream', 'stock' => 5, 'unit' => '', 'barcode' => '6007', 'retail' => 25, 'wholesale' => 18],
+            ['name' => 'AICE MILK TEA', 'category' => 'Ice Cream', 'stock' => 5, 'unit' => '', 'barcode' => '6008', 'retail' => 25, 'wholesale' => 20],
+            ['name' => 'AICE CALAMANSI', 'category' => 'Ice Cream', 'stock' => 4, 'unit' => '', 'barcode' => '6009', 'retail' => 25, 'wholesale' => 20],
+            ['name' => 'AICE MOCHI', 'category' => 'Ice Cream', 'stock' => 1, 'unit' => '', 'barcode' => '6010', 'retail' => 25, 'wholesale' => 18],
+            ['name' => 'AICE WATERMELON', 'category' => 'Ice Cream', 'stock' => 4, 'unit' => '', 'barcode' => '6011', 'retail' => 25, 'wholesale' => 20],
+        ];
 
-        // Product 3: Mineral Water 500ml
-        $water = Product::create([
-            'name' => 'Nature\'s Spring 500ml',
-            'description' => '500ml Purified Drinking Water',
-            'category' => 'Beverages',
-            'base_unit' => 'piece',
-            'stock_quantity' => 1200, // 50 cases × 24 pieces
-            'low_stock_threshold' => 100,
-        ]);
+        foreach ($products as $productData) {
+            // Create product
+            $product = Product::create([
+                'name' => $productData['name'],
+                'description' => $productData['category'] . ' product',
+                'category' => $productData['category'],
+                'base_unit' => 'piece',
+                'stock_quantity' => $productData['stock'],
+                'low_stock_threshold' => 10,
+            ]);
 
-        ProductUnit::create([
-            'product_id' => $water->id,
-            'unit_name' => 'Piece',
-            'barcode' => '4806517160013',
-            'price' => 12.00,
-            'price_type' => 'retail',
-            'conversion_factor' => 1,
-        ]);
+            // Create single unit (piece/retail)
+            ProductUnit::create([
+                'product_id' => $product->id,
+                'unit_name' => $productData['unit'],
+                'barcode' => $productData['barcode'],
+                'price' => $productData['retail'],
+                'price_type' => 'retail',
+                'conversion_factor' => 1,
+            ]);
 
-        ProductUnit::create([
-            'product_id' => $water->id,
-            'unit_name' => 'Case',
-            'barcode' => '14806517160010',
-            'price' => 240.00,
-            'price_type' => 'wholesale',
-            'conversion_factor' => 24,
-        ]);
-    }
+            // If wholesale price is different, add wholesale unit
+            if ($productData['wholesale'] != $productData['retail']) {
+                ProductUnit::create([
+                    'product_id' => $product->id,
+                    'unit_name' => $productData['unit'] . ' (Wholesale)',
+                    'barcode' => 'W' . $productData['barcode'],
+                    'price' => $productData['wholesale'],
+                    'price_type' => 'wholesale',
+                    'conversion_factor' => 1,
+                ]);
+            }
+        }
 
-    /**
-     * Create snack products with multiple units
-     */
-    private function createSnackProducts(): void
-    {
-        // Product 4: Chippy BBQ
-        $chippy = Product::create([
-            'name' => 'Chippy BBQ 110g',
-            'description' => 'BBQ Flavored Corn Chips',
-            'category' => 'Snacks',
-            'base_unit' => 'piece',
-            'stock_quantity' => 240, // 10 boxes × 24 pieces
-            'low_stock_threshold' => 30,
-        ]);
-
-        ProductUnit::create([
-            'product_id' => $chippy->id,
-            'unit_name' => 'Piece',
-            'barcode' => '4800016100017',
-            'price' => 28.00,
-            'price_type' => 'retail',
-            'conversion_factor' => 1,
-        ]);
-
-        ProductUnit::create([
-            'product_id' => $chippy->id,
-            'unit_name' => 'Box',
-            'barcode' => '14800016100014',
-            'price' => 600.00, // 24 pieces × ₱25 each
-            'price_type' => 'wholesale',
-            'conversion_factor' => 24,
-        ]);
-
-        // Product 5: Lucky Me Instant Noodles
-        $noodles = Product::create([
-            'name' => 'Lucky Me! Pancit Canton Original',
-            'description' => 'Instant Stir-Fry Noodles - Original Flavor',
-            'category' => 'Snacks',
-            'base_unit' => 'piece',
-            'stock_quantity' => 600, // 20 boxes × 30 pieces
-            'low_stock_threshold' => 60,
-        ]);
-
-        ProductUnit::create([
-            'product_id' => $noodles->id,
-            'unit_name' => 'Piece',
-            'barcode' => '4800194100014',
-            'price' => 15.00,
-            'price_type' => 'retail',
-            'conversion_factor' => 1,
-        ]);
-
-        ProductUnit::create([
-            'product_id' => $noodles->id,
-            'unit_name' => 'Box',
-            'barcode' => '14800194100011',
-            'price' => 390.00, // 30 pieces × ₱13 each
-            'price_type' => 'wholesale',
-            'conversion_factor' => 30,
-        ]);
-    }
-
-    /**
-     * Create sample customers
-     */
-    private function createCustomers(): void
-    {
-        // Customer 1: Regular reseller with credit
-        Customer::create([
-            'name' => 'Maria\'s Sari-Sari Store',
-            'phone_number' => '09171234567',
-            'address' => 'Brgy. Poblacion, Cebu City',
-            'credit_balance' => 2500.00, // Has outstanding utang
-        ]);
-
-        // Customer 2: Walk-in reseller, no credit
-        Customer::create([
-            'name' => 'Juan\'s Mini Mart',
-            'phone_number' => '09189876543',
-            'address' => 'Brgy. Talamban, Cebu City',
-            'credit_balance' => 0.00,
-        ]);
-
-        // Customer 3: Small reseller
-        Customer::create([
-            'name' => 'Rosa\'s Tindahan',
-            'phone_number' => '09351112222',
-            'address' => 'Brgy. Lahug, Cebu City',
-            'credit_balance' => 850.00,
-        ]);
+        $this->command->info('Created ' . count($products) . ' products');
     }
 }

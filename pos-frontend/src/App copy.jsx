@@ -1,9 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ShoppingCart, Package, Users, TrendingUp, Barcode, X, Plus, Minus, Trash2, DollarSign, CreditCard, Smartphone, Save, Edit, AlertCircle, CheckCircle, XCircle, Wallet, Camera, Loader } from 'lucide-react';
 
-// Import Vision Scanner Modal
-import VisionScannerModal from './components/VisionScannerModal';
-
 // API Base URL - Change this to your Laravel backend URL
 const API_BASE = 'http://127.0.0.1:8000/api';
 
@@ -15,7 +12,7 @@ const SalesInterface = ({
   barcodeInputRef, barcodeInput, setBarcodeInput, handleBarcodeScan, cart, setCart,
   updateQuantity, removeFromCart, customers, selectedCustomer, setSelectedCustomer,
   paymentMethod, setPaymentMethod, amountPaid, setAmountPaid, calculateTotal,
-  calculateChange, completeSale, setShowVisionScanner
+  calculateChange, completeSale
 }) => (
   <div className="flex gap-4 h-full">
     {/* Left Panel: Scanner and Cart */}
@@ -25,28 +22,19 @@ const SalesInterface = ({
           <Barcode className="w-5 h-5 text-blue-600" />
           <h3 className="font-semibold">Scan Product</h3>
         </div>
-        <div className="flex gap-2">
-          <input
-            ref={barcodeInputRef}
-            type="text"
-            value={barcodeInput}
-            onChange={(e) => setBarcodeInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && barcodeInput.trim()) {
-                handleBarcodeScan(barcodeInput.trim());
-              }
-            }}
-            placeholder="Scan barcode or type and press Enter..."
-            className="flex-1 px-4 py-3 border-2 border-blue-300 rounded-lg focus:border-blue-500 focus:outline-none text-lg"
-          />
-          <button
-            onClick={() => setShowVisionScanner(true)}
-            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 flex items-center gap-2 font-semibold"
-          >
-            <Camera className="w-5 h-5" />
-            AI Scan
-          </button>
-        </div>
+        <input
+          ref={barcodeInputRef}
+          type="text"
+          value={barcodeInput}
+          onChange={(e) => setBarcodeInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && barcodeInput.trim()) {
+              handleBarcodeScan(barcodeInput.trim());
+            }
+          }}
+          placeholder="Scan barcode or type and press Enter..."
+          className="w-full px-4 py-3 border-2 border-blue-300 rounded-lg focus:border-blue-500 focus:outline-none text-lg"
+        />
       </div>
 
       <div className="flex-1 bg-white rounded-lg shadow-md p-4 overflow-hidden flex flex-col">
@@ -90,7 +78,7 @@ const SalesInterface = ({
                   </button>
                   <span className="w-12 text-center font-semibold text-lg">{item.quantity}</span>
                   <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="w-8 h-8 bg-gray-200 rounded hover:bg-gray-300 flex items-center justify-center">
-                    <Plus className="w-4 h-5" />
+                    <Plus className="w-4 h-4" />
                   </button>
                 </div>
                 <div className="w-24 text-right">
@@ -943,7 +931,9 @@ const ProductModal = ({ editingProduct, setEditingProduct, setShowProductModal, 
 // Main POSSystem Component
 // ===================================================================
 const POSSystem = () => {
+
   const [showVisionScanner, setShowVisionScanner] = useState(false);
+
   const [activeTab, setActiveTab] = useState('sales');
   const [barcodeInput, setBarcodeInput] = useState('');
   const [cart, setCart] = useState([]);
@@ -991,36 +981,6 @@ const POSSystem = () => {
   const showNotification = (message, type = 'success') => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 3000);
-  };
-
-  // Vision Scanner Product Detection Handler
-  const handleVisionDetection = (productUnit) => {
-    if (!productUnit) return;
-    
-    // Check stock
-    if (!productUnit.stock_info?.has_stock) {
-      showNotification('Insufficient stock!', 'error');
-      return;
-    }
-    
-    // Add to cart
-    const existingItem = cart.find(item => item.id === productUnit.id);
-    if (existingItem) {
-      updateQuantity(productUnit.id, existingItem.quantity + 1);
-    } else {
-      setCart([...cart, { ...productUnit, quantity: 1 }]);
-    }
-    
-    showNotification(`✓ ${productUnit.product?.name || productUnit.name} added via AI Vision!`, 'success');
-    
-    // Play success sound
-    try {
-      const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUrDk');
-      audio.volume = 0.3;
-      audio.play().catch(() => {});
-    } catch (e) {
-      // Silent fail for audio
-    }
   };
 
   const loadCustomers = async () => {
@@ -1404,7 +1364,6 @@ const POSSystem = () => {
             calculateTotal={calculateTotal}
             calculateChange={calculateChange}
             completeSale={completeSale}
-            setShowVisionScanner={setShowVisionScanner}
           />
         )}
         {activeTab === 'inventory' && (
@@ -1444,16 +1403,6 @@ const POSSystem = () => {
           />
         )}
       </main>
-
-      {/* Vision Scanner Modal */}
-      {showVisionScanner && (
-        <VisionScannerModal
-          isOpen={showVisionScanner}
-          onClose={() => setShowVisionScanner(false)}
-          onProductDetected={handleVisionDetection}
-          API_BASE={API_BASE}
-        />
-      )}
 
       {showProductModal && (
         <ProductModal 
@@ -1504,23 +1453,6 @@ const POSSystem = () => {
           {notification.message}
         </div>
       )}
-
-      {/* Add animation CSS */}
-      <style jsx>{`
-        @keyframes fade-in-up {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        .animate-fade-in-up {
-          animation: fade-in-up 0.3s ease-out;
-        }
-      `}</style>
     </div>
   );
 };
