@@ -36,8 +36,6 @@ app.add_middleware(
 )
 
 # ===== ROBOFLOW CONFIGURATION =====
-ROBOFLOW_API_KEY = "jCWzAkm0Ci7GdDHN1hvz"
-ROBOFLOW_MODEL_URL = "sari-sari-store-detection-ylu0e-yvreo/2"
 ROBOFLOW_API_ENDPOINT = f"https://detect.roboflow.com/{ROBOFLOW_MODEL_URL}"
 CONFIDENCE_THRESHOLD = 25  # 50% minimum (Roboflow uses 0-100 scale)
 OVERLAP_THRESHOLD = 45  # IoU threshold for NMS
