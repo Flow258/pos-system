@@ -90,7 +90,6 @@ services:
     depends_on:
       - laravel
       - frontend
-      - vision
     networks:
       - pos_network
 
