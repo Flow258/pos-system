@@ -1,0 +1,114 @@
+version: '3.8'
+
+services:
+
+  # ── MYSQL 8 DATABASE ───────────────────────────────────────────
+  mysql:
+    image: mysql:8.0
+    container_name: pos_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: AshleyDave_09157652245
+      MYSQL_DATABASE: pos_system
+      MYSQL_USER: pos_user
+      MYSQL_PASSWORD: AshleyDave_09157652245
+    ports:
+      - "3306:3306"    # Remove for security if no external DB access needed
+    volumes:
+      - ./data/mysql:/var/lib/mysql    # Persist DB data
+    networks:
+      - pos_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+      interval: 5s
+
+  # ── LARAVEL BACKEND ───────────────────────────────────────────
+  laravel:
+    build:
+      context: .
+      dockerfile: Dockerfile.laravel
+    container_name: pos_laravel
+    restart: unless-stopped
+    environment:
+      APP_NAME: POSSystem
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_URL: http://192.168.1.36
+      DB_HOST: mysql          # Uses Docker service name, NOT localhost
+      DB_PORT: 3306
+      DB_DATABASE: pos_system
+      DB_USERNAME: pos_user
+      DB_PASSWORD: AshleyDave_09157652245
+      CACHE_DRIVER: file
+      SESSION_DRIVER: file
+    ports:
+      - "8000:8000"
+    depends_on:
+      mysql:
+        condition: service_healthy    # Wait for DB to be ready
+    volumes:
+      - .:/app
+      - ./logs:/app/storage/logs
+    networks:
+      - pos_network
+    command: >
+      sh -c "composer install --no-dev --optimize-autoloader &&
+             php artisan key:generate --force &&
+             php artisan migrate --force &&
+             php artisan config:cache &&
+             php artisan route:cache &&
+             php artisan serve --host=0.0.0.0 --port=8000"
+
+  # ── REACT FRONTEND ────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./pos-frontend
+      dockerfile: Dockerfile
+    container_name: pos_frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./pos-frontend:/app
+      - /app/node_modules        # Prevent host node_modules from overwriting
+    networks:
+      - pos_network
+    command: npm run dev
+
+  # ── NGINX REVERSE PROXY ───────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: pos_nginx
+    restart: unless-stopped
+    ports:
+      - "8888:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - laravel
+      - frontend
+      - vision
+    networks:
+      - pos_network
+
+  # ── PHPMYADMIN (Optional - Database GUI) ──────────────────────
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: pos_phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "8081:80"
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+    depends_on:
+      - mysql
+    networks:
+      - pos_network
+
+networks:
+  pos_network:
+    driver: bridge
