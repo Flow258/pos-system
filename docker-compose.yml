@@ -10,7 +10,7 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: AshleyDave_09157652245
       MYSQL_DATABASE: pos_system
-      MYSQL_USER: pos_user
+      MYSQL_USER: root
       MYSQL_PASSWORD: AshleyDave_09157652245
     ports:
       - "3306:3306"    # Remove for security if no external DB access needed
@@ -39,7 +39,7 @@ services:
       DB_HOST: mysql          # Uses Docker service name, NOT localhost
       DB_PORT: 3306
       DB_DATABASE: pos_system
-      DB_USERNAME: pos_user
+      DB_USERNAME: root
       DB_PASSWORD: AshleyDave_09157652245
       CACHE_DRIVER: file
       SESSION_DRIVER: file
