@@ -14,7 +14,7 @@ import Notification from './components/Notification';
 import Header from './components/Header';
 import TabNavigation from './components/TabNavigation';
 
-const API_BASE = 'http://127.0.0.1:8000/api';
+const API_BASE = '/api';
 
 const POSSystem = () => {
   const [showVisionScanner, setShowVisionScanner] = useState(false);
