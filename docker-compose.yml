@@ -13,9 +13,9 @@ services:
       MYSQL_USER: root
       MYSQL_PASSWORD: AshleyDave_09157652245
     ports:
-      - "3306:3306"    # Remove for security if no external DB access needed
+      - "3306:3306"
     volumes:
-      - ./data/mysql:/var/lib/mysql    # Persist DB data
+      - ./data/mysql:/var/lib/mysql
     networks:
       - pos_network
     healthcheck:
@@ -35,49 +35,34 @@ services:
       APP_NAME: POSSystem
       APP_ENV: production
       APP_DEBUG: "false"
-      APP_URL: http://192.168.1.36
-      DB_HOST: mysql          # Uses Docker service name, NOT localhost
+      APP_URL: http://192.168.1.36:8888
+      DB_HOST: mysql
       DB_PORT: 3306
       DB_DATABASE: pos_system
       DB_USERNAME: root
       DB_PASSWORD: AshleyDave_09157652245
       CACHE_DRIVER: file
       SESSION_DRIVER: file
+      # ── PayMongo GCash ──
+      PAYMONGO_SECRET_KEY: "${PAYMONGO_SECRET_KEY}"
+      PAYMONGO_PUBLIC_KEY: "${PAYMONGO_PUBLIC_KEY}"
+      FRONTEND_URL: http://192.168.1.36:8888
     ports:
       - "8000:8000"
     depends_on:
       mysql:
-        condition: service_healthy    # Wait for DB to be ready
+        condition: service_healthy
     volumes:
-      - .:/app
       - ./logs:/app/storage/logs
     networks:
       - pos_network
     command: >
-      sh -c "composer install --no-dev --optimize-autoloader &&
-             php artisan key:generate --force &&
-             php artisan migrate --force &&
+      sh -c "php artisan migrate --force &&
              php artisan config:cache &&
              php artisan route:cache &&
              php artisan serve --host=0.0.0.0 --port=8000"
 
-  # ── REACT FRONTEND ────────────────────────────────────────────
-  frontend:
-    build:
-      context: ./pos-frontend
-      dockerfile: Dockerfile
-    container_name: pos_frontend
-    restart: unless-stopped
-    ports:
-      - "5173:5173"
-    volumes:
-      - ./pos-frontend:/app
-      - /app/node_modules        # Prevent host node_modules from overwriting
-    networks:
-      - pos_network
-    command: npm run dev
-
-  # ── NGINX REVERSE PROXY ───────────────────────────────────────
+  # ── NGINX REVERSE PROXY (serves React + Laravel API) ─────────
   nginx:
     image: nginx:alpine
     container_name: pos_nginx
@@ -87,9 +72,9 @@ services:
       - "443:443"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./pos-frontend/dist:/usr/share/nginx/html:ro   # Built React app
     depends_on:
       - laravel
-      - frontend
     networks:
       - pos_network
 

@@ -44,6 +44,10 @@ const POSSystem = () => {
   const [loading, setLoading] = useState(false);
   const barcodeInputRef = useRef(null);
 
+  // ── GCash / PayMongo state ──
+  const [gcashPayment, setGcashPayment] = useState(null);
+  // { checkoutUrl, sessionId, pendingReceipt, status, popupRef }
+
   const [productForm, setProductForm] = useState({
     name: '',
     description: '',
@@ -239,20 +243,23 @@ const POSSystem = () => {
 
   const calculateChange = () => (parseFloat(amountPaid) || 0) - calculateTotal();
 
-  // ─── completeSale now returns a receipt object so SalesInterface can show it ───
+  // ─── completeSale now handles GCash PayMongo popup flow ───
   const completeSale = async () => {
     const total = calculateTotal();
     const paid  = parseFloat(amountPaid) || 0;
 
     if (cart.length === 0) { showNotification('Cart is empty', 'error'); return null; }
-    if (paid < total && paymentMethod !== 'credit') { showNotification('Insufficient payment', 'error'); return null; }
+    if (paid < total && paymentMethod !== 'credit' && paymentMethod !== 'gcash') {
+      showNotification('Insufficient payment', 'error'); return null;
+    }
 
     try {
+      // Step 1: Create the sale
       const saleData = {
         customer_id:    selectedCustomer,
         total_amount:   total,
-        amount_paid:    paymentMethod === 'credit' ? 0 : paid,
-        change_due:     paymentMethod === 'credit' ? 0 : calculateChange(),
+        amount_paid:    paymentMethod === 'credit' ? 0 : (paymentMethod === 'gcash' ? 0 : paid),
+        change_due:     paymentMethod === 'credit' ? 0 : (paymentMethod === 'gcash' ? 0 : calculateChange()),
         payment_method: paymentMethod,
         items: cart.map(item => ({
           product_unit_id: item.id,
@@ -269,49 +276,154 @@ const POSSystem = () => {
       });
       const data = await response.json();
 
-      if (data.success) {
-        showNotification('Sale completed successfully!');
-
-        // ── Build the receipt object for the Receipt modal ──
-        const customerName = selectedCustomer
-          ? customers.find(c => String(c.id) === String(selectedCustomer))?.name || null
-          : null;
-
-        const receipt = {
-          receipt_number: data.data?.id
-            ? `RCP-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${String(data.data.id).padStart(4,'0')}`
-            : `RCP-${Date.now()}`,
-          created_at:     new Date().toISOString(),
-          payment_method: paymentMethod,
-          customer_name:  customerName,
-          items: cart.map(item => ({
-            name:      item.product?.name || item.name || 'Item',
-            unit_name: item.unit_name || '',
-            qty:       item.quantity,
-            price:     parseFloat(item.price),
-          })),
-          subtotal:      total,
-          discount:      0,
-          total:         total,
-          cash_tendered: paymentMethod === 'credit' ? 0 : paid,
-          change:        paymentMethod === 'credit' ? 0 : calculateChange(),
-        };
-
-        // Reset POS state
-        setCart([]);
-        setAmountPaid('');
-        setSelectedCustomer(null);
-        setPaymentMethod('cash');
-        loadProducts();
-        loadCustomers();
-
-        // Return receipt → SalesInterface will show the modal
-        return receipt;
-
-      } else {
+      if (!data.success) {
         showNotification(data.message || 'Error completing sale', 'error');
         return null;
       }
+
+      showNotification('Sale recorded!');
+
+      // Build the base receipt object
+      const customerName = selectedCustomer
+        ? customers.find(c => String(c.id) === String(selectedCustomer))?.name || null
+        : null;
+
+      const baseReceipt = {
+        receipt_number: data.data?.id
+          ? `RCP-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${String(data.data.id).padStart(4,'0')}`
+          : `RCP-${Date.now()}`,
+        created_at:     new Date().toISOString(),
+        payment_method: paymentMethod,
+        customer_name:  customerName,
+        items: cart.map(item => ({
+          name:      item.product?.name || item.name || 'Item',
+          unit_name: item.unit_name || '',
+          qty:       item.quantity,
+          price:     parseFloat(item.price),
+        })),
+        subtotal:      total,
+        discount:      0,
+        total:         total,
+        cash_tendered: paymentMethod === 'credit' || paymentMethod === 'gcash' ? 0 : paid,
+        change:        paymentMethod === 'credit' || paymentMethod === 'gcash' ? 0 : calculateChange(),
+      };
+
+      // Reset POS state early
+      setCart([]);
+      setAmountPaid('');
+      setSelectedCustomer(null);
+      setPaymentMethod('cash');
+      loadProducts();
+      loadCustomers();
+
+      // ── GCASH FLOW: PayMongo popup checkout ──
+      if (paymentMethod === 'gcash') {
+        try {
+          const payResponse = await fetch(`${API_BASE}/payments/gcash/create`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sale_id: data.data.id,
+              amount: total,
+              description: `Alquizalas Store Purchase - Sale #${data.data.id}`,
+            }),
+          });
+          const payData = await payResponse.json();
+
+          if (!payData.success) {
+            showNotification('Failed to create GCash payment. Please try manual payment.', 'error');
+            return baseReceipt;
+          }
+
+          const checkoutUrl = payData.data.checkout_url;
+          const sessionId   = payData.data.paymongo_session_id;
+
+          // Open PayMongo checkout popup
+          const popup = window.open(checkoutUrl, 'GCash Payment', 'width=500,height=750,scrollbars=yes');
+
+          // Start polling for payment status
+          setGcashPayment({
+            checkoutUrl,
+            sessionId,
+            pendingReceipt: baseReceipt,
+            status: 'pending',
+            popupRef: popup,
+          });
+
+          // Poll every 3 seconds
+          const interval = setInterval(async () => {
+            try {
+              const statusRes = await fetch(`${API_BASE}/payments/gcash/status/${sessionId}`);
+              const statusData = await statusRes.json();
+
+              if (statusData.success) {
+                const paymentStatus = statusData.data.status;
+
+                if (paymentStatus === 'paid') {
+                  clearInterval(interval);
+                  showNotification('GCash payment confirmed! 🎉');
+                  setGcashPayment(prev => ({
+                    ...prev,
+                    status: 'paid',
+                    pendingReceipt: {
+                      ...baseReceipt,
+                      payment_method: 'gcash',
+                    },
+                  }));
+                  // Close popup if still open
+                  if (popup && !popup.closed) popup.close();
+                } else if (['failed', 'cancelled', 'expired'].includes(paymentStatus)) {
+                  clearInterval(interval);
+                  showNotification('GCash payment was not completed. Please try again.', 'error');
+                  setGcashPayment(prev => ({ ...prev, status: paymentStatus }));
+                  if (popup && !popup.closed) popup.close();
+                }
+              }
+            } catch (err) {
+              // Ignore polling errors (network blips)
+            }
+          }, 3000);
+
+          // Listen for postMessage from popup (backup signal)
+          const handleMessage = (event) => {
+            if (event.data?.type === 'PAYMONGO_PAYMENT_SUCCESS') {
+              // The poll will catch it, but this is a faster indicator
+              if (event.data.session_id === sessionId) {
+                // Trigger an immediate poll
+                clearInterval(interval);
+                fetch(`${API_BASE}/payments/gcash/status/${sessionId}`).then(r => r.json()).then(d => {
+                  if (d.success && d.data.status === 'paid') {
+                    showNotification('GCash payment confirmed! 🎉');
+                    setGcashPayment(prev => ({
+                      ...prev,
+                      status: 'paid',
+                    }));
+                  } else {
+                    // Re-start polling if not yet confirmed
+                    // (do nothing - the popup might close before PayMongo confirms)
+                  }
+                });
+              }
+            } else if (event.data?.type === 'PAYMONGO_PAYMENT_FAILED') {
+              showNotification('GCash payment was cancelled.', 'error');
+              setGcashPayment(prev => ({ ...prev, status: 'cancelled' }));
+              clearInterval(interval);
+            }
+          };
+          window.addEventListener('message', handleMessage);
+
+          // Return null — receipt will be shown when payment confirms
+          return null;
+
+        } catch (err) {
+          showNotification('Error processing GCash payment', 'error');
+          return baseReceipt;
+        }
+      }
+
+      // ── CASH / CREDIT FLOW: return receipt directly ──
+      return baseReceipt;
+
     } catch (error) {
       showNotification('Error completing sale', 'error');
       return null;
@@ -464,6 +576,8 @@ const POSSystem = () => {
             calculateChange={calculateChange}
             completeSale={completeSale}
             setShowVisionScanner={setShowVisionScanner}
+            gcashPayment={gcashPayment}
+            setGcashPayment={setGcashPayment}
           />
         )}
         {activeTab === 'inventory' && (

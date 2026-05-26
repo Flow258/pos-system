@@ -1,0 +1,12 @@
+.env
+.git
+.gitignore
+vendor/
+node_modules/
+pos-frontend/node_modules/
+pos-frontend/dist/
+data/
+logs/
+docker-compose.yml
+nginx.conf
+README.md

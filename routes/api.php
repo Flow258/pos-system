@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\SalesController;
 use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\VisionController;
 use App\Http\Controllers\Api\ReceiptController;
+use App\Http\Controllers\Api\PaymentController;
 
 /*
 |--------------------------------------------------------------------------
@@ -107,6 +108,22 @@ Route::prefix('vision')->group(function () {
 Route::get('/receipts',        [ReceiptController::class, 'index']);
 Route::post('/receipts',       [ReceiptController::class, 'store']);
 Route::get('/receipts/{receipt}', [ReceiptController::class, 'show']);
+
+/*
+|--------------------------------------------------------------------------
+| PayMongo GCash Payment Routes
+|--------------------------------------------------------------------------
+*/
+Route::prefix('payments')->group(function () {
+    Route::post('/gcash/create', [PaymentController::class, 'createGcashPayment'])
+        ->name('api.payments.gcash.create');
+
+    Route::get('/gcash/status/{paymongoSessionId}', [PaymentController::class, 'checkGcashStatus'])
+        ->name('api.payments.gcash.status');
+
+    Route::get('/by-sale/{saleId}', [PaymentController::class, 'getPaymentBySale'])
+        ->name('api.payments.by-sale');
+});
 
 /*
 |--------------------------------------------------------------------------
