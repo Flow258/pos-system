@@ -21,10 +21,10 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 COPY . .
 
-# Copy .env and generate key once during build
+# Copy .env and install dependencies
 RUN if [ ! -f .env ]; then cp .env.example .env; fi && \
-    php artisan key:generate --force && \
-    composer install --no-dev --optimize-autoloader
+    composer install --no-dev --optimize-autoloader && \
+    php artisan key:generate --force
 
 EXPOSE 8000
 
