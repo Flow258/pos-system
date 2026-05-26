@@ -1,6 +1,6 @@
 // App.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { ShoppingCart, Package, Users, TrendingUp, XCircle, CheckCircle } from 'lucide-react';
+import { ShoppingCart, Package, Users, TrendingUp } from 'lucide-react';
 import VisionScannerModal from './components/VisionScannerModal';
 import SalesInterface from './components/SalesInterface';
 import InventoryInterface from './components/InventoryInterface';
@@ -44,13 +44,13 @@ const POSSystem = () => {
   const [loading, setLoading] = useState(false);
   const barcodeInputRef = useRef(null);
 
-  const [productForm, setProductForm] = useState({ 
-    name: '', 
-    description: '', 
-    category: '', 
-    stock_quantity: '', 
-    low_stock_threshold: '10', 
-    units: [{ unit_name: 'Piece', barcode: '', price: '', price_type: 'retail', conversion_factor: '1' }] 
+  const [productForm, setProductForm] = useState({
+    name: '',
+    description: '',
+    category: '',
+    stock_quantity: '',
+    low_stock_threshold: '10',
+    units: [{ unit_name: 'Piece', barcode: '', price: '', price_type: 'retail', conversion_factor: '1' }]
   });
 
   useEffect(() => {
@@ -78,21 +78,17 @@ const POSSystem = () => {
 
   const handleVisionDetection = (productUnit) => {
     if (!productUnit) return;
-    
     if (!productUnit.stock_info?.has_stock) {
       showNotification('Insufficient stock!', 'error');
       return;
     }
-    
     const existingItem = cart.find(item => item.id === productUnit.id);
     if (existingItem) {
       updateQuantity(productUnit.id, existingItem.quantity + 1);
     } else {
-      setCart([...cart, { ...productUnit, quantity: 1 }]);
+      setCart(prev => [...prev, { ...productUnit, quantity: 1 }]);
     }
-    
     showNotification(`✓ ${productUnit.product?.name || productUnit.name} added via AI Vision!`, 'success');
-    
     try {
       const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUrDk');
       audio.volume = 0.3;
@@ -106,7 +102,6 @@ const POSSystem = () => {
       const data = await response.json();
       if (data.success) setCustomers(data.data);
     } catch (error) {
-      console.error('Error loading customers:', error);
       showNotification('Error loading customers', 'error');
     }
   };
@@ -164,7 +159,6 @@ const POSSystem = () => {
         showNotification(data.message || 'Error loading customer history', 'error');
       }
     } catch (error) {
-      console.error('Error loading customer history:', error);
       showNotification('Error loading customer history', 'error');
     }
   };
@@ -181,8 +175,9 @@ const POSSystem = () => {
         showNotification(`Payment of ₱${amount.toFixed(2)} recorded successfully!`);
         loadCustomers();
         if (showCustomerHistory && selectedCustomerDetails) {
-          setSelectedCustomerDetails({ ...selectedCustomerDetails, credit_balance: data.data.credit_balance });
-          viewCustomerHistory({ ...selectedCustomerDetails, credit_balance: data.data.credit_balance });
+          const updated = { ...selectedCustomerDetails, credit_balance: data.data.credit_balance };
+          setSelectedCustomerDetails(updated);
+          viewCustomerHistory(updated);
         }
       } else {
         showNotification(data.message || 'Error recording payment', 'error');
@@ -229,15 +224,12 @@ const POSSystem = () => {
     if (existingItem) {
       updateQuantity(productUnit.id, existingItem.quantity + 1);
     } else {
-      setCart([...cart, { ...productUnit, quantity: 1 }]);
+      setCart(prev => [...prev, { ...productUnit, quantity: 1 }]);
     }
   };
 
   const updateQuantity = (id, newQuantity) => {
-    if (newQuantity < 1) {
-      removeFromCart(id);
-      return;
-    }
+    if (newQuantity < 1) { removeFromCart(id); return; }
     setCart(cart.map(item => item.id === id ? { ...item, quantity: newQuantity } : item));
   };
 
@@ -247,39 +239,82 @@ const POSSystem = () => {
 
   const calculateChange = () => (parseFloat(amountPaid) || 0) - calculateTotal();
 
+  // ─── completeSale now returns a receipt object so SalesInterface can show it ───
   const completeSale = async () => {
     const total = calculateTotal();
-    const paid = parseFloat(amountPaid) || 0;
-    if (cart.length === 0) return showNotification('Cart is empty', 'error');
-    if (paid < total && paymentMethod !== 'credit') return showNotification('Insufficient payment', 'error');
+    const paid  = parseFloat(amountPaid) || 0;
+
+    if (cart.length === 0) { showNotification('Cart is empty', 'error'); return null; }
+    if (paid < total && paymentMethod !== 'credit') { showNotification('Insufficient payment', 'error'); return null; }
+
     try {
       const saleData = {
-        customer_id: selectedCustomer,
-        total_amount: total,
-        amount_paid: paymentMethod === 'credit' ? 0 : paid,
-        change_due: paymentMethod === 'credit' ? 0 : calculateChange(),
+        customer_id:    selectedCustomer,
+        total_amount:   total,
+        amount_paid:    paymentMethod === 'credit' ? 0 : paid,
+        change_due:     paymentMethod === 'credit' ? 0 : calculateChange(),
         payment_method: paymentMethod,
-        items: cart.map(item => ({ product_unit_id: item.id, quantity: item.quantity, unit_price: parseFloat(item.price), subtotal: parseFloat(item.price) * item.quantity }))
+        items: cart.map(item => ({
+          product_unit_id: item.id,
+          quantity:        item.quantity,
+          unit_price:      parseFloat(item.price),
+          subtotal:        parseFloat(item.price) * item.quantity,
+        })),
       };
+
       const response = await fetch(`${API_BASE}/sales`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(saleData)
+        body: JSON.stringify(saleData),
       });
       const data = await response.json();
+
       if (data.success) {
         showNotification('Sale completed successfully!');
+
+        // ── Build the receipt object for the Receipt modal ──
+        const customerName = selectedCustomer
+          ? customers.find(c => String(c.id) === String(selectedCustomer))?.name || null
+          : null;
+
+        const receipt = {
+          receipt_number: data.data?.id
+            ? `RCP-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${String(data.data.id).padStart(4,'0')}`
+            : `RCP-${Date.now()}`,
+          created_at:     new Date().toISOString(),
+          payment_method: paymentMethod,
+          customer_name:  customerName,
+          items: cart.map(item => ({
+            name:      item.product?.name || item.name || 'Item',
+            unit_name: item.unit_name || '',
+            qty:       item.quantity,
+            price:     parseFloat(item.price),
+          })),
+          subtotal:      total,
+          discount:      0,
+          total:         total,
+          cash_tendered: paymentMethod === 'credit' ? 0 : paid,
+          change:        paymentMethod === 'credit' ? 0 : calculateChange(),
+        };
+
+        // Reset POS state
         setCart([]);
         setAmountPaid('');
         setSelectedCustomer(null);
         setPaymentMethod('cash');
         loadProducts();
         loadCustomers();
+
+        // Return receipt → SalesInterface will show the modal
+        return receipt;
+
       } else {
         showNotification(data.message || 'Error completing sale', 'error');
+        return null;
       }
     } catch (error) {
       showNotification('Error completing sale', 'error');
+      return null;
     }
   };
 
@@ -303,11 +338,11 @@ const POSSystem = () => {
         }
       }
       const method = editingProduct ? 'PUT' : 'POST';
-      const url = editingProduct ? `${API_BASE}/products/${editingProduct.id}` : `${API_BASE}/products`;
+      const url    = editingProduct ? `${API_BASE}/products/${editingProduct.id}` : `${API_BASE}/products`;
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(productForm)
+        body: JSON.stringify(productForm),
       });
       const data = await response.json();
       if (data.success) {
@@ -324,31 +359,33 @@ const POSSystem = () => {
     }
   };
 
-  const resetProductForm = () => setProductForm({ 
-    name: '', 
-    description: '', 
-    category: '', 
-    stock_quantity: '', 
-    low_stock_threshold: '10', 
-    units: [{ unit_name: 'Piece', barcode: '', price: '', price_type: 'retail', conversion_factor: '1' }] 
+  const resetProductForm = () => setProductForm({
+    name: '',
+    description: '',
+    category: '',
+    stock_quantity: '',
+    low_stock_threshold: '10',
+    units: [{ unit_name: 'Piece', barcode: '', price: '', price_type: 'retail', conversion_factor: '1' }]
   });
 
   const editProduct = (product) => {
     setEditingProduct(product);
     setProductForm({
-      name: product.name,
-      description: product.description || '',
-      category: product.category || '',
-      stock_quantity: product.stock_quantity.toString(),
+      name:                product.name,
+      description:         product.description || '',
+      category:            product.category || '',
+      stock_quantity:      product.stock_quantity.toString(),
       low_stock_threshold: product.low_stock_threshold.toString(),
-      units: product.product_units?.length > 0 ? product.product_units.map(u => ({ 
-        id: u.id, 
-        unit_name: u.unit_name, 
-        barcode: u.barcode, 
-        price: u.price.toString(), 
-        price_type: u.price_type, 
-        conversion_factor: u.conversion_factor.toString() 
-      })) : [{ unit_name: 'Piece', barcode: '', price: '', price_type: 'retail', conversion_factor: '1' }]
+      units: product.product_units?.length > 0
+        ? product.product_units.map(u => ({
+            id:                u.id,
+            unit_name:         u.unit_name,
+            barcode:           u.barcode,
+            price:             u.price.toString(),
+            price_type:        u.price_type,
+            conversion_factor: u.conversion_factor.toString(),
+          }))
+        : [{ unit_name: 'Piece', barcode: '', price: '', price_type: 'retail', conversion_factor: '1' }]
     });
     setShowProductModal(true);
   };
@@ -357,23 +394,19 @@ const POSSystem = () => {
     setLoading(true);
     try {
       let url = `${API_BASE}/sales?`;
-      
       if (reportType === 'daily') {
         url += `start_date=${reportDate}&end_date=${reportDate}`;
       } else if (reportType === 'range' && reportStartDate && reportEndDate) {
         url += `start_date=${reportStartDate}&end_date=${reportEndDate}`;
       }
-
       const response = await fetch(url);
       const data = await response.json();
-
       if (data.success) {
         setSalesData(data.data);
       } else {
         showNotification(data.message || 'Error loading report', 'error');
       }
     } catch (error) {
-      console.error('Error loading report:', error);
       showNotification('Error loading report', 'error');
     }
     setLoading(false);
@@ -381,26 +414,14 @@ const POSSystem = () => {
 
   const calculateSummary = () => {
     if (!salesData || !salesData.data) return null;
-
     const sales = salesData.data;
-    const totalSales = sales
-      .filter(s => s.payment_method !== 'payment')
-      .reduce((sum, sale) => sum + parseFloat(sale.total_amount), 0);
-    const cashSales = sales
-      .filter(s => s.payment_method === 'cash')
-      .reduce((sum, sale) => sum + parseFloat(sale.total_amount), 0);
-    const gcashSales = sales
-      .filter(s => s.payment_method === 'gcash')
-      .reduce((sum, sale) => sum + parseFloat(sale.total_amount), 0);
-    const creditSales = sales
-      .filter(s => s.payment_method === 'credit')
-      .reduce((sum, sale) => sum + parseFloat(sale.total_amount), 0);
-    const paymentTotal = sales
-      .filter(s => s.payment_method === 'payment')
-      .reduce((sum, sale) => sum + parseFloat(sale.total_amount), 0);
+    const totalSales          = sales.filter(s => s.payment_method !== 'payment').reduce((sum, s) => sum + parseFloat(s.total_amount), 0);
+    const cashSales           = sales.filter(s => s.payment_method === 'cash').reduce((sum, s) => sum + parseFloat(s.total_amount), 0);
+    const gcashSales          = sales.filter(s => s.payment_method === 'gcash').reduce((sum, s) => sum + parseFloat(s.total_amount), 0);
+    const creditSales         = sales.filter(s => s.payment_method === 'credit').reduce((sum, s) => sum + parseFloat(s.total_amount), 0);
+    const paymentTotal        = sales.filter(s => s.payment_method === 'payment').reduce((sum, s) => sum + parseFloat(s.total_amount), 0);
     const paymentTransactions = sales.filter(s => s.payment_method === 'payment').length;
-    const totalTransactions = sales.length - paymentTransactions;
-
+    const totalTransactions   = sales.length - paymentTransactions;
     return {
       totalTransactions,
       totalSales,
@@ -416,14 +437,14 @@ const POSSystem = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 font-sans">
       <Header />
-      
+
       <div className="max-w-7xl mx-auto px-4 py-4">
         <TabNavigation activeTab={activeTab} setActiveTab={setActiveTab} />
       </div>
 
       <main className="max-w-7xl mx-auto px-4 pb-8" style={{ height: 'calc(100vh - 220px)' }}>
         {activeTab === 'sales' && (
-          <SalesInterface 
+          <SalesInterface
             barcodeInputRef={barcodeInputRef}
             barcodeInput={barcodeInput}
             setBarcodeInput={setBarcodeInput}
@@ -446,7 +467,7 @@ const POSSystem = () => {
           />
         )}
         {activeTab === 'inventory' && (
-          <InventoryInterface 
+          <InventoryInterface
             products={products}
             editProduct={editProduct}
             resetProductForm={resetProductForm}
@@ -455,7 +476,7 @@ const POSSystem = () => {
           />
         )}
         {activeTab === 'customers' && (
-          <CustomersInterface 
+          <CustomersInterface
             customers={customers}
             editCustomer={editCustomer}
             setShowCustomerModal={setShowCustomerModal}
@@ -465,7 +486,7 @@ const POSSystem = () => {
           />
         )}
         {activeTab === 'reports' && (
-          <ReportsInterface 
+          <ReportsInterface
             reportType={reportType}
             setReportType={setReportType}
             reportDate={reportDate}
@@ -491,9 +512,8 @@ const POSSystem = () => {
           API_BASE={API_BASE}
         />
       )}
-
       {showProductModal && (
-        <ProductModal 
+        <ProductModal
           editingProduct={editingProduct}
           setEditingProduct={setEditingProduct}
           setShowProductModal={setShowProductModal}
@@ -507,7 +527,7 @@ const POSSystem = () => {
         />
       )}
       {showCustomerModal && (
-        <CustomerModal 
+        <CustomerModal
           editingCustomer={editingCustomer}
           setEditingCustomer={setEditingCustomer}
           setShowCustomerModal={setShowCustomerModal}
@@ -518,7 +538,7 @@ const POSSystem = () => {
         />
       )}
       {showCustomerHistory && (
-        <CustomerHistoryModal 
+        <CustomerHistoryModal
           selectedCustomerDetails={selectedCustomerDetails}
           setShowCustomerHistory={setShowCustomerHistory}
           setSelectedCustomerDetails={setSelectedCustomerDetails}
@@ -527,19 +547,18 @@ const POSSystem = () => {
         />
       )}
       {showPaymentModal && (
-        <PaymentModal 
+        <PaymentModal
           selectedCustomerDetails={selectedCustomerDetails}
           setShowPaymentModal={setShowPaymentModal}
           processPayment={processPayment}
           showNotification={showNotification}
         />
       )}
-
       {notification && (
-        <Notification 
-          message={notification.message} 
-          type={notification.type} 
-          onClose={() => setNotification(null)} 
+        <Notification
+          message={notification.message}
+          type={notification.type}
+          onClose={() => setNotification(null)}
         />
       )}
     </div>

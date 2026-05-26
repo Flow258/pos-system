@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\SalesController;
 use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\VisionController;
+use App\Http\Controllers\Api\ReceiptController;
 
 /*
 |--------------------------------------------------------------------------
@@ -102,6 +103,10 @@ Route::prefix('vision')->group(function () {
     Route::get('/model/info', [VisionController::class, 'getModelInfo'])
         ->name('api.vision.model.info');
 });
+
+Route::get('/receipts',        [ReceiptController::class, 'index']);
+Route::post('/receipts',       [ReceiptController::class, 'store']);
+Route::get('/receipts/{receipt}', [ReceiptController::class, 'show']);
 
 /*
 |--------------------------------------------------------------------------

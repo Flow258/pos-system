@@ -1,0 +1,123 @@
+Perfect! I see your MySQL container is named **`pos_mysql`**. 
+
+Now let's fix your backup script:
+
+## Step 1: Update the backup script with correct container name
+
+```bash
+sudo nano /docker/pos-system/backup.sh
+```
+
+Replace the entire script with this:
+
+```bash
+#!/bin/bash
+
+# ============================================
+# POS SYSTEM DATABASE BACKUP SCRIPT
+# ============================================
+
+# Backup configuration
+BACKUP_DIR="/docker/pos-system/backups"
+CONTAINER="pos_mysql"                              # Fixed: correct container name
+DB_USER="root"
+DB_PASS="AshleyDave_09157652245"
+DB_NAME="pos_system"
+
+# Timestamp for unique filename
+TIMESTAMP=$(date +"%Y-%m-%d_%H-%M-%S")
+BACKUP_FILE="$BACKUP_DIR/backup_$TIMESTAMP.sql"
+LOG_FILE="$BACKUP_DIR/backup.log"
+
+# Create backup directory if it doesn't exist
+mkdir -p $BACKUP_DIR
+
+# Start backup
+echo "=========================================" >> $LOG_FILE
+echo "Backup started at: $(date)" >> $LOG_FILE
+echo "Database: $DB_NAME" >> $LOG_FILE
+echo "Container: $CONTAINER" >> $LOG_FILE
+
+# Perform MySQL backup
+docker exec $CONTAINER mysqldump -u $DB_USER -p$DB_PASS $DB_NAME > $BACKUP_FILE 2>> $LOG_FILE
+
+# Check if backup was successful
+if [ -f "$BACKUP_FILE" ] && [ -s "$BACKUP_FILE" ]; then
+    # Get file size
+    FILE_SIZE=$(du -h $BACKUP_FILE | cut -f1)
+    
+    # Compress the backup
+    gzip $BACKUP_FILE
+    echo "✅ Backup successful: backup_$TIMESTAMP.sql.gz (Size: $FILE_SIZE compressed)" >> $LOG_FILE
+    
+    # Delete backups older than 7 days
+    find $BACKUP_DIR -name "backup_*.sql.gz" -type f -mtime +7 -delete
+    echo "🗑️  Removed backups older than 7 days" >> $LOG_FILE
+else
+    echo "❌ BACKUP FAILED at $(date)" >> $LOG_FILE
+fi
+
+echo "Backup completed at: $(date)" >> $LOG_FILE
+echo "=========================================" >> $LOG_FILE
+```
+
+## Step 2: Test the script
+
+```bash
+# Run the backup
+/docker/pos-system/backup.sh
+
+# Check results
+ls -lh /docker/pos-system/backups/
+cat /docker/pos-system/backups/backup.log
+```
+
+## Step 3: Verify backup file is valid
+
+```bash
+# Check if backup has content (should be > 0 bytes)
+ls -lh /docker/pos-system/backups/*.sql.gz
+
+# Test restore (optional - dry run)
+gunzip -c /docker/pos-system/backups/backup_*.sql.gz | head -20
+```
+
+## Step 4: Add to crontab (automate daily backups)
+
+```bash
+sudo crontab -e
+```
+
+Add this line for daily backup at 2:00 AM:
+
+```cron
+0 2 * * * /docker/pos-system/backup.sh
+```
+
+## Step 5: Verify cron is set
+
+```bash
+# List cron jobs
+sudo crontab -l
+
+# Check if backup was created
+ls -la /docker/pos-system/backups/
+```
+
+## Quick manual backup (run anytime)
+
+```bash
+docker exec pos_mysql mysqldump -u root -pAshleyDave_09157652245 pos_system | gzip > /docker/pos-system/backups/manual_backup_$(date +"%Y-%m-%d_%H-%M-%S").sql.gz
+```
+
+## Restore from backup (if needed)
+
+```bash
+# Uncompress backup
+gunzip /docker/pos-system/backups/backup_2026-05-25_*.sql.gz
+
+# Restore to database
+docker exec -i pos_mysql mysql -u root -pAshleyDave_09157652245 pos_system < /docker/pos-system/backups/backup_2026-05-25_*.sql
+```
+
+Now your POS database will backup automatically every day at 2 AM! 🎉
