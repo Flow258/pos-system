@@ -264,6 +264,7 @@ class SalesController extends Controller
                 ], 404);
             }
 
+            /** @var \Illuminate\Database\Eloquent\Collection<int, Sale> $sales */
             $sales = Sale::with(['saleItems.productUnit.product'])
                 ->where('customer_id', $customerId)
                 ->get();
@@ -278,8 +279,10 @@ class SalesController extends Controller
 
             DB::beginTransaction();
 
+            /** @var Sale $sale */
             foreach ($sales as $sale) {
                 // Restore stock for each sale item
+                /** @var \App\Models\SaleItem $saleItem */
                 foreach ($sale->saleItems as $saleItem) {
                     $productUnit = $saleItem->productUnit;
                     if ($productUnit && $productUnit->product) {
