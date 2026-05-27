@@ -1,5 +1,5 @@
 ================================================================
-POS SYSTEM - FIX ALL FILES (run these on OMV)
+POS SYSTEM - FIX ALL FILES (run these on OMV)s
 ================================================================
 
 STEP 1: Fix docker-compose.yml
@@ -190,12 +190,9 @@ STEP 4: REBUILD AND START
 cd /mnt/data/pos-system && docker compose up -d --build
 
 
-STEP 5: CHECK IF WORKING
-===========================
-curl -s -o /dev/null -w "Frontend: %{http_code}\n" http://192.168.1.36:8888/
-curl -s -o /dev/null -w "API: %{http_code}\n" http://192.168.1.36:8888/api/customers
-
-
-STEP 6: OPEN IN BROWSER
+STEP 5: OPEN IN BROWSER
 =========================
 http://192.168.1.36:8888
+
+
+
