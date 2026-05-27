@@ -2,7 +2,6 @@ FROM php:8.2-fpm
 
 WORKDIR /app
 
-# Install system dependencies
 RUN apt-get update && apt-get install -y \
     curl \
     libpng-dev \
@@ -16,12 +15,10 @@ RUN apt-get update && apt-get install -y \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j$(nproc) gd zip pdo pdo_mysql bcmath
 
-# Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 COPY . .
 
-# Copy .env and install dependencies
 RUN if [ ! -f .env ]; then cp .env.example .env; fi && \
     composer install --no-dev --optimize-autoloader && \
     php artisan key:generate --force

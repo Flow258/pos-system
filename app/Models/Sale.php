@@ -16,6 +16,7 @@ class Sale extends Model
      */
     protected $fillable = [
         'customer_id',
+        'credit_session_id',
         'total_amount',
         'amount_paid',
         'change_due',
@@ -47,6 +48,18 @@ class Sale extends Model
     public function customer()
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    /**
+     * Get the credit session this sale belongs to.
+     * 
+     * Only credit/payment sales are linked to a session.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function creditSession()
+    {
+        return $this->belongsTo(CreditSession::class);
     }
 
     /**

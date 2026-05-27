@@ -1,0 +1,201 @@
+================================================================
+POS SYSTEM - FIX ALL FILES (run these on OMV)
+================================================================
+
+STEP 1: Fix docker-compose.yml
+===============================
+cat > /mnt/data/pos-system/docker-compose.yml << 'DOCKEREOF'
+services:
+
+  mysql:
+    image: mysql:8.0
+    container_name: pos_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: AshleyDave_09157652245
+      MYSQL_DATABASE: pos_system
+      MYSQL_USER: root
+      MYSQL_PASSWORD: AshleyDave_09157652245
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./data/mysql:/var/lib/mysql
+    networks:
+      - pos_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+      interval: 5s
+
+  laravel:
+    build:
+      context: .
+      dockerfile: Dockerfile.laravel
+    container_name: pos_laravel
+    restart: unless-stopped
+    environment:
+      APP_NAME: POSSystem
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_URL: http://192.168.1.36:8888
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: pos_system
+      DB_USERNAME: root
+      DB_PASSWORD: AshleyDave_09157652245
+      CACHE_DRIVER: file
+      SESSION_DRIVER: file
+      PAYMONGO_SECRET_KEY: "${PAYMONGO_SECRET_KEY}"
+      PAYMONGO_PUBLIC_KEY: "${PAYMONGO_PUBLIC_KEY}"
+      FRONTEND_URL: http://192.168.1.36:8888
+    ports:
+      - "8000:8000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    volumes:
+      - ./logs:/app/storage/logs
+    networks:
+      - pos_network
+    command: >
+      sh -c "php artisan migrate --force &&
+             php artisan config:cache &&
+             php artisan route:cache &&
+             php artisan serve --host=0.0.0.0 --port=8000"
+
+  frontend:
+    image: node:22-alpine
+    container_name: pos_frontend
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - ./pos-frontend:/app
+    ports:
+      - "5174:5173"
+    networks:
+      - pos_network
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+
+  nginx:
+    image: nginx:alpine
+    container_name: pos_nginx
+    restart: unless-stopped
+    ports:
+      - "8888:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - laravel
+      - frontend
+    networks:
+      - pos_network
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: pos_phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "8081:80"
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+    depends_on:
+      - mysql
+    networks:
+      - pos_network
+
+networks:
+  pos_network:
+    driver: bridge
+DOCKEREOF
+
+
+STEP 2: Fix nginx.conf
+=======================
+cat > /mnt/data/pos-system/nginx.conf << 'NGINXEOF'
+events {
+    worker_connections 1024;
+}
+
+http {
+    upstream laravel  { server laravel:8000; }
+    upstream frontend { server frontend:5173; }
+
+    server {
+        listen 80;
+        server_name _;
+        client_max_body_size 50M;
+
+        location /api/ {
+            proxy_pass http://laravel;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_read_timeout 120s;
+        }
+
+        location / {
+            proxy_pass http://frontend;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+    }
+}
+NGINXEOF
+
+
+STEP 3: Fix Dockerfile.laravel
+===============================
+cat > /mnt/data/pos-system/Dockerfile.laravel << 'LARAVELDOCKER'
+FROM php:8.2-fpm
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y \
+    curl \
+    libpng-dev \
+    libjpeg-dev \
+    libfreetype6-dev \
+    libzip-dev \
+    libonig-dev \
+    zip \
+    unzip \
+    git \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install -j$(nproc) gd zip pdo pdo_mysql bcmath
+
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+COPY . .
+
+RUN if [ ! -f .env ]; then cp .env.example .env; fi && \
+    composer install --no-dev --optimize-autoloader && \
+    php artisan key:generate --force
+
+EXPOSE 8000
+
+CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
+LARAVELDOCKER
+
+
+STEP 4: REBUILD AND START
+===========================
+cd /mnt/data/pos-system && docker compose up -d --build
+
+
+STEP 5: CHECK IF WORKING
+===========================
+curl -s -o /dev/null -w "Frontend: %{http_code}\n" http://192.168.1.36:8888/
+curl -s -o /dev/null -w "API: %{http_code}\n" http://192.168.1.36:8888/api/customers
+
+
+STEP 6: OPEN IN BROWSER
+=========================
+http://192.168.1.36:8888

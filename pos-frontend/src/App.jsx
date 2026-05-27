@@ -14,7 +14,7 @@ import Notification from './components/Notification';
 import Header from './components/Header';
 import TabNavigation from './components/TabNavigation';
 
-const API_BASE = '/api';
+const API_BASE = 'api';
 
 const POSSystem = () => {
   const [showVisionScanner, setShowVisionScanner] = useState(false);
@@ -35,6 +35,7 @@ const POSSystem = () => {
   const [selectedCustomerDetails, setSelectedCustomerDetails] = useState(null);
   const [showCustomerHistory, setShowCustomerHistory] = useState(false);
   const [customerSales, setCustomerSales] = useState([]);
+  const [activeSession, setActiveSession] = useState(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [reportType, setReportType] = useState('daily');
   const [reportDate, setReportDate] = useState(new Date().toISOString().split('T')[0]);
@@ -153,12 +154,16 @@ const POSSystem = () => {
 
   const viewCustomerHistory = async (customer) => {
     setSelectedCustomerDetails(customer);
+    setActiveSession(null);
+    setCustomerSales([]);
     setShowCustomerHistory(true);
     try {
-      const response = await fetch(`${API_BASE}/sales?customer_id=${customer.id}&payment_method=credit`);
+      // Fetch the active credit session with its sales
+      const response = await fetch(`${API_BASE}/credit-sessions/${customer.id}/active/sales`);
       const data = await response.json();
       if (data.success) {
-        setCustomerSales(data.data.data || []);
+        setActiveSession(data.data.session);
+        setCustomerSales(data.data.sales || []);
       } else {
         showNotification(data.message || 'Error loading customer history', 'error');
       }
@@ -181,6 +186,8 @@ const POSSystem = () => {
         if (showCustomerHistory && selectedCustomerDetails) {
           const updated = { ...selectedCustomerDetails, credit_balance: data.data.credit_balance };
           setSelectedCustomerDetails(updated);
+          // Reload the active session — this will reflect the settled/new session
+          setActiveSession(null);
           viewCustomerHistory(updated);
         }
       } else {
@@ -658,6 +665,9 @@ const POSSystem = () => {
           setSelectedCustomerDetails={setSelectedCustomerDetails}
           customerSales={customerSales}
           setCustomerSales={setCustomerSales}
+          activeSession={activeSession}
+          setActiveSession={setActiveSession}
+          viewCustomerHistory={viewCustomerHistory}
         />
       )}
       {showPaymentModal && (

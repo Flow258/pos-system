@@ -8,6 +8,7 @@ use App\Models\SaleItem;
 use App\Models\Product;
 use App\Models\ProductUnit;
 use App\Models\Customer;
+use App\Models\CreditSession;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -139,12 +140,25 @@ class SalesController extends Controller
                 $productUnit->product->save();
             }
 
-            // If payment is on credit, add to customer's credit balance
-            if ($validated['payment_method'] === 'credit' && $validated['customer_id']) {
+            // If payment is on credit, add to customer's credit balance and link to session
+            if (in_array($validated['payment_method'], ['credit', 'payment']) && $validated['customer_id']) {
                 $customer = Customer::find($validated['customer_id']);
                 if ($customer) {
-                    $customer->credit_balance += $validated['total_amount'];
+                    // Get or create the active credit session
+                    $session = CreditSession::getOrCreateActive($customer);
+                    
+                    if ($validated['payment_method'] === 'credit') {
+                        $customer->credit_balance += $validated['total_amount'];
+                        $session->addCredit($validated['total_amount']);
+                    } else {
+                        // Payment record — reduce credit balance
+                        $session->addPayment($validated['total_amount']);
+                    }
                     $customer->save();
+
+                    // Link the sale to the credit session
+                    $sale->credit_session_id = $session->id;
+                    $sale->save();
                 }
             }
 
@@ -172,6 +186,132 @@ class SalesController extends Controller
                 'success' => false,
                 'message' => $e->getMessage(),
                 'error' => config('app.debug') ? $e->getTraceAsString() : 'Internal server error',
+            ], 500);
+        }
+    }
+
+    /**
+     * Delete a sale and restore stock + credit balance.
+     */
+    public function destroy($id): JsonResponse
+    {
+        try {
+            $sale = Sale::with(['saleItems.productUnit.product', 'customer'])->find($id);
+
+            if (!$sale) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Sale not found',
+                ], 404);
+            }
+
+            DB::beginTransaction();
+
+            // If credit sale, reduce customer's credit balance
+            if ($sale->payment_method === 'credit' && $sale->customer) {
+                $customer = $sale->customer;
+                $customer->credit_balance -= $sale->total_amount;
+                if ($customer->credit_balance < 0) {
+                    $customer->credit_balance = 0;
+                }
+                $customer->save();
+            }
+
+            // Restore stock for each sale item
+            foreach ($sale->saleItems as $saleItem) {
+                $productUnit = $saleItem->productUnit;
+                if ($productUnit && $productUnit->product) {
+                    $baseUnitsToRestore = $saleItem->quantity * $productUnit->conversion_factor;
+                    $productUnit->product->stock_quantity += $baseUnitsToRestore;
+                    $productUnit->product->save();
+                }
+            }
+
+            // Delete sale items first, then the sale itself
+            $sale->saleItems()->delete();
+            $sale->delete();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Sale deleted successfully. Stock and credit balance restored.',
+            ], 200);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Error deleting sale',
+                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error',
+            ], 500);
+        }
+    }
+
+    /**
+     * Delete all credit sales for a customer and restore stock + balance.
+     *
+     * DELETE /api/sales/by-customer/{customerId}
+     */
+    public function destroyByCustomer($customerId): JsonResponse
+    {
+        try {
+            $customer = Customer::find($customerId);
+            if (!$customer) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Customer not found',
+                ], 404);
+            }
+
+            $sales = Sale::with(['saleItems.productUnit.product'])
+                ->where('customer_id', $customerId)
+                ->get();
+
+            if ($sales->isEmpty()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'No sales to delete for this customer.',
+                    'deleted_count' => 0,
+                ], 200);
+            }
+
+            DB::beginTransaction();
+
+            foreach ($sales as $sale) {
+                // Restore stock for each sale item
+                foreach ($sale->saleItems as $saleItem) {
+                    $productUnit = $saleItem->productUnit;
+                    if ($productUnit && $productUnit->product) {
+                        $baseUnitsToRestore = $saleItem->quantity * $productUnit->conversion_factor;
+                        $productUnit->product->stock_quantity += $baseUnitsToRestore;
+                        $productUnit->product->save();
+                    }
+                }
+
+                // Delete sale items, then the sale
+                $sale->saleItems()->delete();
+                $sale->delete();
+            }
+
+            // Reset customer's credit balance to zero
+            $customer->credit_balance = 0;
+            $customer->save();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => "All {$sales->count()} sale(s) deleted. Stock restored and credit balance reset.",
+                'deleted_count' => $sales->count(),
+            ], 200);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Error deleting customer sales',
+                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error',
             ], 500);
         }
     }

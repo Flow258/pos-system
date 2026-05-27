@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
+use App\Models\CreditSession;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\ValidationException;
@@ -200,20 +201,35 @@ class CustomerController extends Controller
 
             // Record the payment as a "sale" transaction for tracking
             \DB::beginTransaction();
-            
-            // Create a payment record (negative sale)
+
+            // Get or create the active credit session
+            $session = CreditSession::getOrCreateActive($customer);
+
+            // Create a payment record
             $paymentSale = \App\Models\Sale::create([
-                'customer_id' => $customer->id,
-                'total_amount' => -$validated['amount'], // Negative to indicate payment
-                'amount_paid' => $validated['amount'],
-                'change_due' => 0,
-                'payment_method' => 'payment', // Special payment method
-                'sale_date' => now(),
+                'customer_id'       => $customer->id,
+                'credit_session_id' => $session->id,
+                'total_amount'      => -$validated['amount'], // Negative to indicate payment
+                'amount_paid'       => $validated['amount'],
+                'change_due'        => 0,
+                'payment_method'    => 'payment',
+                'sale_date'         => now(),
             ]);
 
             // Reduce customer credit balance
             $customer->credit_balance -= $validated['amount'];
             $customer->save();
+
+            // Add payment to session tracking
+            $session->addPayment($validated['amount']);
+
+            // ── AUTO-SETTLE: if balance is fully paid, close this session ──
+            $newBalance = $customer->credit_balance;
+            if ($newBalance <= 0) {
+                $session->settle('Auto-settled — fully paid');
+                // Start a fresh session next time by NOT creating a new one here
+                // getOrCreateActive() will auto-create one on the next credit sale
+            }
 
             \DB::commit();
 

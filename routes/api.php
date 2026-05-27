@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\VisionController;
 use App\Http\Controllers\Api\ReceiptController;
 use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\CreditSessionController;
 
 /*
 |--------------------------------------------------------------------------
@@ -61,6 +62,12 @@ Route::prefix('sales')->group(function () {
     
     Route::post('/', [SalesController::class, 'store'])
         ->name('api.sales.store');
+    
+    Route::delete('/{id}', [SalesController::class, 'destroy'])
+        ->name('api.sales.destroy');
+    
+    Route::delete('/by-customer/{customerId}', [SalesController::class, 'destroyByCustomer'])
+        ->name('api.sales.destroy-by-customer');
 });
 
 Route::prefix('customers')->group(function () {
@@ -123,6 +130,25 @@ Route::prefix('payments')->group(function () {
 
     Route::get('/by-sale/{saleId}', [PaymentController::class, 'getPaymentBySale'])
         ->name('api.payments.by-sale');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Credit Session Routes — New Season / Per-Session History
+|--------------------------------------------------------------------------
+*/
+Route::prefix('credit-sessions')->group(function () {
+    Route::get('/{customerId}', [CreditSessionController::class, 'index'])
+        ->name('api.credit-sessions.index');
+
+    Route::get('/{customerId}/active/sales', [CreditSessionController::class, 'activeSessionSales'])
+        ->name('api.credit-sessions.active-sales');
+
+    Route::post('/{customerId}/start-fresh', [CreditSessionController::class, 'startFresh'])
+        ->name('api.credit-sessions.start-fresh');
+
+    Route::get('/{customerId}/session/{sessionId}/sales', [CreditSessionController::class, 'sessionSales'])
+        ->name('api.credit-sessions.session-sales');
 });
 
 /*
