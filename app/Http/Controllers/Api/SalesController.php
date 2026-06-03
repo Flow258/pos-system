@@ -17,7 +17,13 @@ use Illuminate\Validation\ValidationException;
 class SalesController extends Controller
 {
     /**
-     * Get all sales
+     * Get all sales (paginated).
+     *
+     * Returns transactions with a `transaction_type` field added to each row:
+     *   - "sale"    → cash / gcash / credit purchases
+     *   - "payment" → credit repayments (total_amount is stored as negative in DB)
+     *
+     * The frontend should use `transaction_type` to decide how to display/sum rows.
      */
     public function index(Request $request): JsonResponse
     {
@@ -25,7 +31,6 @@ class SalesController extends Controller
             $query = Sale::with(['customer', 'saleItems.productUnit.product'])
                 ->orderBy('sale_date', 'desc');
 
-            // Optional filters
             if ($request->has('start_date')) {
                 $query->whereDate('sale_date', '>=', $request->start_date);
             }
@@ -38,21 +43,37 @@ class SalesController extends Controller
 
             $sales = $query->paginate($request->per_page ?? 50);
 
+            // ── Annotate each row so the frontend never has to guess ──────────
+            // Also normalise total_amount so it is always a positive number.
+            // Payment rows are stored with total_amount < 0 in the DB; we send
+            // the absolute value and expose the sign via transaction_type instead.
+            $sales->getCollection()->transform(function ($sale) {
+                $sale->transaction_type = $sale->payment_method === 'payment'
+                    ? 'payment'
+                    : 'sale';
+
+                // Always expose a positive amount — direction is encoded in type
+                $sale->total_amount = abs((float) $sale->total_amount);
+
+                return $sale;
+            });
+
             return response()->json([
                 'success' => true,
-                'data' => $sales,
+                'data'    => $sales,
             ], 200);
+
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Error fetching sales',
-                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error',
+                'error'   => config('app.debug') ? $e->getMessage() : 'Internal server error',
             ], 500);
         }
     }
 
     /**
-     * Get single sale
+     * Get single sale.
      */
     public function show($id): JsonResponse
     {
@@ -66,51 +87,54 @@ class SalesController extends Controller
                 ], 404);
             }
 
+            $sale->transaction_type = $sale->payment_method === 'payment' ? 'payment' : 'sale';
+            $sale->total_amount     = abs((float) $sale->total_amount);
+
             return response()->json([
                 'success' => true,
-                'data' => $sale,
+                'data'    => $sale,
             ], 200);
+
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Error fetching sale',
-                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error',
+                'error'   => config('app.debug') ? $e->getMessage() : 'Internal server error',
             ], 500);
         }
     }
 
     /**
-     * Create new sale (Complete checkout)
+     * Create a new sale (complete checkout).
      */
     public function store(Request $request): JsonResponse
     {
         try {
             $validated = $request->validate([
-                'customer_id' => 'nullable|exists:customers,id',
-                'total_amount' => 'required|numeric|min:0',
-                'amount_paid' => 'required|numeric|min:0',
-                'change_due' => 'required|numeric',
-                'payment_method' => 'required|string|in:cash,gcash,credit',
-                'items' => 'required|array|min:1',
-                'items.*.product_unit_id' => 'required|exists:product_units,id',
-                'items.*.quantity' => 'required|integer|min:1',
-                'items.*.unit_price' => 'required|numeric|min:0',
-                'items.*.subtotal' => 'required|numeric|min:0',
+                'customer_id'              => 'nullable|exists:customers,id',
+                'total_amount'             => 'required|numeric|min:0',
+                'amount_paid'              => 'required|numeric|min:0',
+                'change_due'               => 'required|numeric',
+                'payment_method'           => 'required|string|in:cash,gcash,credit',
+                'items'                    => 'required|array|min:1',
+                'items.*.product_unit_id'  => 'required|exists:product_units,id',
+                'items.*.quantity'         => 'required|integer|min:1',
+                'items.*.unit_price'       => 'required|numeric|min:0',
+                'items.*.subtotal'         => 'required|numeric|min:0',
             ]);
 
             DB::beginTransaction();
 
-            // Create sale
             $sale = Sale::create([
-                'customer_id' => $validated['customer_id'],
-                'total_amount' => $validated['total_amount'],
-                'amount_paid' => $validated['amount_paid'],
-                'change_due' => $validated['change_due'],
+                'customer_id'    => $validated['customer_id'],
+                // Sales are always stored as POSITIVE amounts
+                'total_amount'   => $validated['total_amount'],
+                'amount_paid'    => $validated['amount_paid'],
+                'change_due'     => $validated['change_due'],
                 'payment_method' => $validated['payment_method'],
-                'sale_date' => now(),
+                'sale_date'      => now(),
             ]);
 
-            // Process each sale item
             foreach ($validated['items'] as $itemData) {
                 $productUnit = ProductUnit::with('product')->find($itemData['product_unit_id']);
 
@@ -118,45 +142,32 @@ class SalesController extends Controller
                     throw new \Exception("Product unit not found: {$itemData['product_unit_id']}");
                 }
 
-                // Calculate base units to deduct
                 $baseUnitsToDeduct = $itemData['quantity'] * $productUnit->conversion_factor;
 
-                // Check if sufficient stock
                 if ($productUnit->product->stock_quantity < $baseUnitsToDeduct) {
                     throw new \Exception("Insufficient stock for: {$productUnit->product->name}");
                 }
 
-                // Create sale item
                 SaleItem::create([
-                    'sale_id' => $sale->id,
+                    'sale_id'         => $sale->id,
                     'product_unit_id' => $productUnit->id,
-                    'quantity' => $itemData['quantity'],
-                    'unit_price' => $itemData['unit_price'],
-                    'subtotal' => $itemData['subtotal'],
+                    'quantity'        => $itemData['quantity'],
+                    'unit_price'      => $itemData['unit_price'],
+                    'subtotal'        => $itemData['subtotal'],
                 ]);
 
-                // Deduct stock from product
                 $productUnit->product->stock_quantity -= $baseUnitsToDeduct;
                 $productUnit->product->save();
             }
 
-            // If payment is on credit, add to customer's credit balance and link to session
-            if (in_array($validated['payment_method'], ['credit', 'payment']) && $validated['customer_id']) {
+            if ($validated['payment_method'] === 'credit' && $validated['customer_id']) {
                 $customer = Customer::find($validated['customer_id']);
                 if ($customer) {
-                    // Get or create the active credit session
                     $session = CreditSession::getOrCreateActive($customer);
-                    
-                    if ($validated['payment_method'] === 'credit') {
-                        $customer->credit_balance += $validated['total_amount'];
-                        $session->addCredit($validated['total_amount']);
-                    } else {
-                        // Payment record — reduce credit balance
-                        $session->addPayment($validated['total_amount']);
-                    }
+                    $customer->credit_balance += $validated['total_amount'];
+                    $session->addCredit($validated['total_amount']);
                     $customer->save();
 
-                    // Link the sale to the credit session
                     $sale->credit_session_id = $session->id;
                     $sale->save();
                 }
@@ -164,13 +175,13 @@ class SalesController extends Controller
 
             DB::commit();
 
-            // Load relationships for response
             $sale->load(['customer', 'saleItems.productUnit.product']);
+            $sale->transaction_type = 'sale';
 
             return response()->json([
                 'success' => true,
                 'message' => 'Sale completed successfully',
-                'data' => $sale,
+                'data'    => $sale,
             ], 201);
 
         } catch (ValidationException $e) {
@@ -178,14 +189,14 @@ class SalesController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
-                'errors' => $e->errors(),
+                'errors'  => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),
-                'error' => config('app.debug') ? $e->getTraceAsString() : 'Internal server error',
+                'error'   => config('app.debug') ? $e->getTraceAsString() : 'Internal server error',
             ], 500);
         }
     }
@@ -207,17 +218,16 @@ class SalesController extends Controller
 
             DB::beginTransaction();
 
-            // If credit sale, reduce customer's credit balance
             if ($sale->payment_method === 'credit' && $sale->customer) {
                 $customer = $sale->customer;
-                $customer->credit_balance -= $sale->total_amount;
+                // total_amount is positive for credit sales
+                $customer->credit_balance -= abs((float) $sale->total_amount);
                 if ($customer->credit_balance < 0) {
                     $customer->credit_balance = 0;
                 }
                 $customer->save();
             }
 
-            // Restore stock for each sale item
             foreach ($sale->saleItems as $saleItem) {
                 $productUnit = $saleItem->productUnit;
                 if ($productUnit && $productUnit->product) {
@@ -227,7 +237,6 @@ class SalesController extends Controller
                 }
             }
 
-            // Delete sale items first, then the sale itself
             $sale->saleItems()->delete();
             $sale->delete();
 
@@ -243,13 +252,13 @@ class SalesController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error deleting sale',
-                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error',
+                'error'   => config('app.debug') ? $e->getMessage() : 'Internal server error',
             ], 500);
         }
     }
 
     /**
-     * Delete all credit sales for a customer and restore stock + balance.
+     * Delete all sales for a customer and restore stock + balance.
      *
      * DELETE /api/sales/by-customer/{customerId}
      */
@@ -264,48 +273,45 @@ class SalesController extends Controller
                 ], 404);
             }
 
-            /** @var \Illuminate\Database\Eloquent\Collection<int, Sale> $sales */
             $sales = Sale::with(['saleItems.productUnit.product'])
                 ->where('customer_id', $customerId)
                 ->get();
 
             if ($sales->isEmpty()) {
                 return response()->json([
-                    'success' => true,
-                    'message' => 'No sales to delete for this customer.',
+                    'success'       => true,
+                    'message'       => 'No sales to delete for this customer.',
                     'deleted_count' => 0,
                 ], 200);
             }
 
             DB::beginTransaction();
 
-            /** @var Sale $sale */
             foreach ($sales as $sale) {
-                // Restore stock for each sale item
-                /** @var \App\Models\SaleItem $saleItem */
-                foreach ($sale->saleItems as $saleItem) {
-                    $productUnit = $saleItem->productUnit;
-                    if ($productUnit && $productUnit->product) {
-                        $baseUnitsToRestore = $saleItem->quantity * $productUnit->conversion_factor;
-                        $productUnit->product->stock_quantity += $baseUnitsToRestore;
-                        $productUnit->product->save();
+                // Only restore stock for actual sales, not payment records
+                if ($sale->payment_method !== 'payment') {
+                    foreach ($sale->saleItems as $saleItem) {
+                        $productUnit = $saleItem->productUnit;
+                        if ($productUnit && $productUnit->product) {
+                            $baseUnitsToRestore = $saleItem->quantity * $productUnit->conversion_factor;
+                            $productUnit->product->stock_quantity += $baseUnitsToRestore;
+                            $productUnit->product->save();
+                        }
                     }
                 }
 
-                // Delete sale items, then the sale
                 $sale->saleItems()->delete();
                 $sale->delete();
             }
 
-            // Reset customer's credit balance to zero
             $customer->credit_balance = 0;
             $customer->save();
 
             DB::commit();
 
             return response()->json([
-                'success' => true,
-                'message' => "All {$sales->count()} sale(s) deleted. Stock restored and credit balance reset.",
+                'success'       => true,
+                'message'       => "All {$sales->count()} sale(s) deleted. Stock restored and credit balance reset.",
                 'deleted_count' => $sales->count(),
             ], 200);
 
@@ -314,40 +320,91 @@ class SalesController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error deleting customer sales',
-                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error',
+                'error'   => config('app.debug') ? $e->getMessage() : 'Internal server error',
             ], 500);
         }
     }
 
     /**
-     * Get daily sales summary
+     * Get sales summary for a date or date range.
+     *
+     * Replaces the old dailySummary() with a unified endpoint that handles
+     * both daily and range reports and correctly excludes payment rows.
+     *
+     * GET /api/sales/summary?date=2025-05-01
+     * GET /api/sales/summary?start_date=2025-05-01&end_date=2025-05-31
      */
-    public function dailySummary(Request $request): JsonResponse
+    public function summary(Request $request): JsonResponse
     {
         try {
-            $date = $request->date ?? now()->toDateString();
+            $query = Sale::query();
 
-            $sales = Sale::whereDate('sale_date', $date)->get();
+            // Date filtering — support both single-day and range
+            if ($request->has('date')) {
+                $query->whereDate('sale_date', $request->date);
+                $period = $request->date;
+            } else {
+                if ($request->has('start_date')) {
+                    $query->whereDate('sale_date', '>=', $request->start_date);
+                }
+                if ($request->has('end_date')) {
+                    $query->whereDate('sale_date', '<=', $request->end_date);
+                }
+                $period = ($request->start_date ?? '?') . ' to ' . ($request->end_date ?? '?');
+            }
 
-            $summary = [
-                'date' => $date,
-                'total_sales' => $sales->count(),
-                'total_amount' => $sales->sum('total_amount'),
-                'cash_sales' => $sales->where('payment_method', 'cash')->sum('total_amount'),
-                'gcash_sales' => $sales->where('payment_method', 'gcash')->sum('total_amount'),
-                'credit_sales' => $sales->where('payment_method', 'credit')->sum('total_amount'),
-            ];
+            // ── Split into sales vs payment rows ──────────────────────────────
+            // Payment rows have payment_method = 'payment' and negative total_amount.
+            // We use ABS() so arithmetic is correct regardless of how old rows
+            // were stored (some may be positive, some negative).
+            $salesRows    = (clone $query)->where('payment_method', '!=', 'payment')->get();
+            $paymentRows  = (clone $query)->where('payment_method', '=', 'payment')->get();
+
+            $cashSales   = $salesRows->where('payment_method', 'cash')
+                                     ->sum(fn($s) => abs((float) $s->total_amount));
+            $gcashSales  = $salesRows->where('payment_method', 'gcash')
+                                     ->sum(fn($s) => abs((float) $s->total_amount));
+            $creditSales = $salesRows->where('payment_method', 'credit')
+                                     ->sum(fn($s) => abs((float) $s->total_amount));
+            $totalSales  = $cashSales + $gcashSales + $creditSales;
+
+            $totalPayments      = $paymentRows->sum(fn($s) => abs((float) $s->total_amount));
+            $salesTransactions  = $salesRows->count();
+            $paymentTransactions = $paymentRows->count();
 
             return response()->json([
                 'success' => true,
-                'data' => $summary,
+                'data'    => [
+                    'period'               => $period,
+                    'total_sales'          => round($totalSales, 2),
+                    'cash_sales'           => round($cashSales, 2),
+                    'gcash_sales'          => round($gcashSales, 2),
+                    'credit_sales'         => round($creditSales, 2),
+                    'total_payments'       => round($totalPayments, 2),
+                    'sales_transactions'   => $salesTransactions,
+                    'payment_transactions' => $paymentTransactions,
+                    'average_transaction'  => $salesTransactions > 0
+                        ? round($totalSales / $salesTransactions, 2)
+                        : 0,
+                ],
             ], 200);
+
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Error fetching summary',
-                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error',
+                'error'   => config('app.debug') ? $e->getMessage() : 'Internal server error',
             ], 500);
         }
+    }
+
+    /**
+     * @deprecated Use summary() instead.
+     * Kept for backwards compatibility with any existing callers.
+     */
+    public function dailySummary(Request $request): JsonResponse
+    {
+        $request->merge(['date' => $request->date ?? now()->toDateString()]);
+        return $this->summary($request);
     }
 }

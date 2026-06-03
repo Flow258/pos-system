@@ -1,5 +1,4 @@
 services:
-
   mysql:
     image: mysql:8.0
     container_name: pos_mysql
@@ -7,8 +6,7 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: AshleyDave_09157652245
       MYSQL_DATABASE: pos_system
-      MYSQL_USER: root
-      MYSQL_PASSWORD: AshleyDave_09157652245
+      # REMOVED: MYSQL_USER and MYSQL_PASSWORD - they conflict with root
     ports:
       - "3306:3306"
     volumes:
@@ -16,7 +14,7 @@ services:
     networks:
       - pos_network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-pAshleyDave_09157652245"]
       timeout: 20s
       retries: 10
       interval: 5s
@@ -49,6 +47,7 @@ services:
         condition: service_healthy
     volumes:
       - ./logs:/app/storage/logs
+      - ./.env:/app/.env  # Mount .env file from host
     networks:
       - pos_network
     command: >
@@ -94,6 +93,8 @@ services:
     environment:
       PMA_HOST: mysql
       PMA_PORT: 3306
+      PMA_USER: root
+      PMA_PASSWORD: AshleyDave_09157652245
     depends_on:
       - mysql
     networks:

@@ -42,12 +42,12 @@ const POSSystem = () => {
   const [reportStartDate, setReportStartDate] = useState('');
   const [reportEndDate, setReportEndDate] = useState('');
   const [salesData, setSalesData] = useState(null);
+  // ── NEW: server-computed summary (always covers ALL rows, not just page 1) ──
+  const [serverSummary, setServerSummary] = useState(null);
   const [loading, setLoading] = useState(false);
   const barcodeInputRef = useRef(null);
 
-  // ── GCash / PayMongo state ──
   const [gcashPayment, setGcashPayment] = useState(null);
-  // { checkoutUrl, sessionId, pendingReceipt, status, popupRef }
 
   const [productForm, setProductForm] = useState({
     name: '',
@@ -158,7 +158,6 @@ const POSSystem = () => {
     setCustomerSales([]);
     setShowCustomerHistory(true);
     try {
-      // Fetch the active credit session with its sales
       const response = await fetch(`${API_BASE}/credit-sessions/${customer.id}/active/sales`);
       const data = await response.json();
       if (data.success) {
@@ -186,7 +185,6 @@ const POSSystem = () => {
         if (showCustomerHistory && selectedCustomerDetails) {
           const updated = { ...selectedCustomerDetails, credit_balance: data.data.credit_balance };
           setSelectedCustomerDetails(updated);
-          // Reload the active session — this will reflect the settled/new session
           setActiveSession(null);
           viewCustomerHistory(updated);
         }
@@ -250,7 +248,6 @@ const POSSystem = () => {
 
   const calculateChange = () => (parseFloat(amountPaid) || 0) - calculateTotal();
 
-  // ─── completeSale now handles GCash PayMongo popup flow ───
   const completeSale = async () => {
     const total = calculateTotal();
     const paid  = parseFloat(amountPaid) || 0;
@@ -261,7 +258,6 @@ const POSSystem = () => {
     }
 
     try {
-      // Step 1: Create the sale
       const saleData = {
         customer_id:    selectedCustomer,
         total_amount:   total,
@@ -290,7 +286,6 @@ const POSSystem = () => {
 
       showNotification('Sale recorded!');
 
-      // Build the base receipt object
       const customerName = selectedCustomer
         ? customers.find(c => String(c.id) === String(selectedCustomer))?.name || null
         : null;
@@ -315,7 +310,6 @@ const POSSystem = () => {
         change:        paymentMethod === 'credit' || paymentMethod === 'gcash' ? 0 : calculateChange(),
       };
 
-      // Reset POS state early
       setCart([]);
       setAmountPaid('');
       setSelectedCustomer(null);
@@ -323,7 +317,6 @@ const POSSystem = () => {
       loadProducts();
       loadCustomers();
 
-      // ── GCASH FLOW: PayMongo popup checkout ──
       if (paymentMethod === 'gcash') {
         try {
           const payResponse = await fetch(`${API_BASE}/payments/gcash/create`, {
@@ -344,11 +337,8 @@ const POSSystem = () => {
 
           const checkoutUrl = payData.data.checkout_url;
           const sessionId   = payData.data.paymongo_session_id;
-
-          // Open PayMongo checkout popup
           const popup = window.open(checkoutUrl, 'GCash Payment', 'width=500,height=750,scrollbars=yes');
 
-          // Start polling for payment status
           setGcashPayment({
             checkoutUrl,
             sessionId,
@@ -357,27 +347,16 @@ const POSSystem = () => {
             popupRef: popup,
           });
 
-          // Poll every 3 seconds
           const interval = setInterval(async () => {
             try {
               const statusRes = await fetch(`${API_BASE}/payments/gcash/status/${sessionId}`);
               const statusData = await statusRes.json();
-
               if (statusData.success) {
                 const paymentStatus = statusData.data.status;
-
                 if (paymentStatus === 'paid') {
                   clearInterval(interval);
                   showNotification('GCash payment confirmed! 🎉');
-                  setGcashPayment(prev => ({
-                    ...prev,
-                    status: 'paid',
-                    pendingReceipt: {
-                      ...baseReceipt,
-                      payment_method: 'gcash',
-                    },
-                  }));
-                  // Close popup if still open
+                  setGcashPayment(prev => ({ ...prev, status: 'paid', pendingReceipt: { ...baseReceipt, payment_method: 'gcash' } }));
                   if (popup && !popup.closed) popup.close();
                 } else if (['failed', 'cancelled', 'expired'].includes(paymentStatus)) {
                   clearInterval(interval);
@@ -386,31 +365,18 @@ const POSSystem = () => {
                   if (popup && !popup.closed) popup.close();
                 }
               }
-            } catch (err) {
-              // Ignore polling errors (network blips)
-            }
+            } catch (err) {}
           }, 3000);
 
-          // Listen for postMessage from popup (backup signal)
           const handleMessage = (event) => {
-            if (event.data?.type === 'PAYMONGO_PAYMENT_SUCCESS') {
-              // The poll will catch it, but this is a faster indicator
-              if (event.data.session_id === sessionId) {
-                // Trigger an immediate poll
-                clearInterval(interval);
-                fetch(`${API_BASE}/payments/gcash/status/${sessionId}`).then(r => r.json()).then(d => {
-                  if (d.success && d.data.status === 'paid') {
-                    showNotification('GCash payment confirmed! 🎉');
-                    setGcashPayment(prev => ({
-                      ...prev,
-                      status: 'paid',
-                    }));
-                  } else {
-                    // Re-start polling if not yet confirmed
-                    // (do nothing - the popup might close before PayMongo confirms)
-                  }
-                });
-              }
+            if (event.data?.type === 'PAYMONGO_PAYMENT_SUCCESS' && event.data.session_id === sessionId) {
+              clearInterval(interval);
+              fetch(`${API_BASE}/payments/gcash/status/${sessionId}`).then(r => r.json()).then(d => {
+                if (d.success && d.data.status === 'paid') {
+                  showNotification('GCash payment confirmed! 🎉');
+                  setGcashPayment(prev => ({ ...prev, status: 'paid' }));
+                }
+              });
             } else if (event.data?.type === 'PAYMONGO_PAYMENT_FAILED') {
               showNotification('GCash payment was cancelled.', 'error');
               setGcashPayment(prev => ({ ...prev, status: 'cancelled' }));
@@ -418,8 +384,6 @@ const POSSystem = () => {
             }
           };
           window.addEventListener('message', handleMessage);
-
-          // Return null — receipt will be shown when payment confirms
           return null;
 
         } catch (err) {
@@ -428,7 +392,6 @@ const POSSystem = () => {
         }
       }
 
-      // ── CASH / CREDIT FLOW: return receipt directly ──
       return baseReceipt;
 
     } catch (error) {
@@ -509,49 +472,78 @@ const POSSystem = () => {
     setShowProductModal(true);
   };
 
-  const loadSalesReport = async () => {
+  // ── loadSalesReport ────────────────────────────────────────────────────────
+  // Fires TWO requests in parallel:
+  //   1. /api/sales?...&per_page=50   → paginated rows for the table & charts
+  //   2. /api/sales/summary?...       → server-computed totals across ALL rows
+  //
+  // The summary cards use serverSummary so they always show the correct total
+  // regardless of how many pages of transactions exist.
+  // ──────────────────────────────────────────────────────────────────────────
+  const loadSalesReport = async (overrides = {}) => {
     setLoading(true);
+    // Clear stale summary immediately so old numbers don't flash
+    setServerSummary(null);
     try {
-      let url = `${API_BASE}/sales?`;
-      if (reportType === 'daily') {
-        url += `start_date=${reportDate}&end_date=${reportDate}`;
-      } else if (reportType === 'range' && reportStartDate && reportEndDate) {
-        url += `start_date=${reportStartDate}&end_date=${reportEndDate}`;
+      const type      = overrides.type      ?? reportType;
+      const date      = overrides.date      ?? reportDate;
+      const startDate = overrides.startDate ?? reportStartDate;
+      const endDate   = overrides.endDate   ?? reportEndDate;
+
+      // Build shared date param string
+      let dateParams = '';
+      if (type === 'daily') {
+        dateParams = `start_date=${date}&end_date=${date}`;
+      } else if (type === 'range' && startDate && endDate) {
+        dateParams = `start_date=${startDate}&end_date=${endDate}`;
       }
-      const response = await fetch(url);
-      const data = await response.json();
-      if (data.success) {
-        setSalesData(data.data);
+
+      if (!dateParams) {
+        showNotification('Please select a date or date range', 'error');
+        setLoading(false);
+        return;
+      }
+
+      // Fire both requests in parallel
+      const [rowsRes, summaryRes] = await Promise.all([
+        fetch(`${API_BASE}/sales?${dateParams}&per_page=9999`),
+        fetch(`${API_BASE}/sales/summary?${dateParams}`),
+      ]);
+
+      const [rowsJson, summaryJson] = await Promise.all([
+        rowsRes.json(),
+        summaryRes.json(),
+      ]);
+
+      if (rowsJson.success) {
+        setSalesData(rowsJson.data);
       } else {
-        showNotification(data.message || 'Error loading report', 'error');
+        showNotification(rowsJson.message || 'Error loading report', 'error');
       }
+
+      if (summaryJson.success) {
+        // Normalise to the shape ReportsInterface expects
+        const s = summaryJson.data;
+        setServerSummary({
+          totalSales:          parseFloat(s.total_sales)          || 0,
+          cashSales:           parseFloat(s.cash_sales)           || 0,
+          gcashSales:          parseFloat(s.gcash_sales)          || 0,
+          creditSales:         parseFloat(s.credit_sales)         || 0,
+          paymentTotal:        parseFloat(s.total_payments)       || 0,
+          totalTransactions:   parseInt(s.sales_transactions)     || 0,
+          paymentTransactions: parseInt(s.payment_transactions)   || 0,
+          averageTransaction:  parseFloat(s.average_transaction)  || 0,
+        });
+      }
+
     } catch (error) {
       showNotification('Error loading report', 'error');
     }
     setLoading(false);
   };
 
-  const calculateSummary = () => {
-    if (!salesData || !salesData.data) return null;
-    const sales = salesData.data;
-    const totalSales          = sales.filter(s => s.payment_method !== 'payment').reduce((sum, s) => sum + parseFloat(s.total_amount), 0);
-    const cashSales           = sales.filter(s => s.payment_method === 'cash').reduce((sum, s) => sum + parseFloat(s.total_amount), 0);
-    const gcashSales          = sales.filter(s => s.payment_method === 'gcash').reduce((sum, s) => sum + parseFloat(s.total_amount), 0);
-    const creditSales         = sales.filter(s => s.payment_method === 'credit').reduce((sum, s) => sum + parseFloat(s.total_amount), 0);
-    const paymentTotal        = sales.filter(s => s.payment_method === 'payment').reduce((sum, s) => sum + parseFloat(s.total_amount), 0);
-    const paymentTransactions = sales.filter(s => s.payment_method === 'payment').length;
-    const totalTransactions   = sales.length - paymentTransactions;
-    return {
-      totalTransactions,
-      totalSales,
-      cashSales,
-      gcashSales,
-      creditSales,
-      paymentTotal,
-      paymentTransactions,
-      averageTransaction: totalTransactions > 0 ? totalSales / totalTransactions : 0,
-    };
-  };
+  // Kept for backwards-compat — ReportsInterface receives this but no longer uses it
+  const calculateSummary = () => null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 font-sans">
@@ -618,6 +610,7 @@ const POSSystem = () => {
             setReportEndDate={setReportEndDate}
             loadSalesReport={loadSalesReport}
             salesData={salesData}
+            serverSummary={serverSummary}
             loading={loading}
             calculateSummary={calculateSummary}
             showNotification={showNotification}

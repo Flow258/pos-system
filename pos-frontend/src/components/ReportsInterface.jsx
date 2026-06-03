@@ -1,79 +1,309 @@
 // components/ReportsInterface.jsx
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 import {
   TrendingUp, DollarSign, ShoppingCart, CreditCard, Smartphone,
   Wallet, AlertCircle, Printer, Calendar, ChevronDown, ChevronUp,
   FileText, BarChart3, RefreshCw, Eye, EyeOff
 } from 'lucide-react';
 
+// ── Chart.js loader (injected once) ───────────────────────────
+let chartJsReady = false;
+let chartJsCallbacks = [];
+const loadChartJs = (cb) => {
+  if (chartJsReady) { cb(); return; }
+  chartJsCallbacks.push(cb);
+  if (document.getElementById('chartjs-cdn')) return;
+  const s = document.createElement('script');
+  s.id  = 'chartjs-cdn';
+  s.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js';
+  s.onload = () => { chartJsReady = true; chartJsCallbacks.forEach(f => f()); chartJsCallbacks = []; };
+  document.head.appendChild(s);
+};
+
+// ── Daily Trend Chart ──────────────────────────────────────────
+const DailyTrendChart = ({ dailyLabels, dailyValues, fmt }) => {
+  const canvasRef = useRef(null);
+  const chartRef  = useRef(null);
+
+  useEffect(() => {
+    loadChartJs(() => {
+      if (!canvasRef.current) return;
+      if (chartRef.current) { chartRef.current.destroy(); }
+      chartRef.current = new window.Chart(canvasRef.current, {
+        type: 'line',
+        data: {
+          labels: dailyLabels.map(d => {
+            const [y, m, day] = d.split('-');
+            return `${parseInt(m)}/${parseInt(day)}`;
+          }),
+          datasets: [{
+            label: 'Daily sales',
+            data: dailyValues,
+            borderColor: '#2563eb',
+            backgroundColor: 'rgba(37,99,235,0.08)',
+            borderWidth: 2,
+            pointRadius: dailyLabels.length <= 14 ? 4 : 2,
+            pointBackgroundColor: '#2563eb',
+            fill: true,
+            tension: 0.3,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: ctx => ' ' + fmt(ctx.parsed.y),
+              },
+            },
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { maxTicksLimit: 10, font: { size: 11 } } },
+            y: {
+              grid: { color: 'rgba(0,0,0,0.05)' },
+              ticks: {
+                font: { size: 11 },
+                callback: v => '₱' + (v >= 1000 ? (v / 1000).toFixed(1) + 'k' : v),
+              },
+            },
+          },
+        },
+      });
+    });
+    return () => { if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; } };
+  }, [dailyLabels.join(','), dailyValues.join(',')]);
+
+  const peak = dailyLabels[dailyValues.indexOf(Math.max(...dailyValues))];
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+      <div className="flex items-center justify-between mb-1">
+        <h3 className="font-semibold flex items-center gap-2 text-gray-700">
+          <TrendingUp className="w-5 h-5 text-gray-500" />
+          Daily sales trend
+        </h3>
+        {peak && (
+          <span className="text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-2.5 py-1">
+            Peak: {peak}
+          </span>
+        )}
+      </div>
+      <p className="text-xs text-gray-400 mb-4">{dailyLabels.length} days</p>
+      <div style={{ position: 'relative', height: '220px' }}>
+        <canvas ref={canvasRef}
+          role="img"
+          aria-label={`Line chart showing daily sales trend over ${dailyLabels.length} days`}>
+          Daily sales data for {dailyLabels.length} days.
+        </canvas>
+      </div>
+    </div>
+  );
+};
+
+// ── Hourly Sales Chart ─────────────────────────────────────────
+const HourlyChart = ({ hourLabels, hourValues, peakHour, fmt }) => {
+  const canvasRef = useRef(null);
+  const chartRef  = useRef(null);
+
+  useEffect(() => {
+    loadChartJs(() => {
+      if (!canvasRef.current) return;
+      if (chartRef.current) { chartRef.current.destroy(); }
+      const bgColors = hourValues.map((_, i) =>
+        i === peakHour ? '#2563eb' : 'rgba(37,99,235,0.18)'
+      );
+      chartRef.current = new window.Chart(canvasRef.current, {
+        type: 'bar',
+        data: {
+          labels: hourLabels,
+          datasets: [{
+            label: 'Sales by hour',
+            data: hourValues,
+            backgroundColor: bgColors,
+            borderRadius: 4,
+            borderSkipped: false,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: { label: ctx => ' ' + fmt(ctx.parsed.y) },
+            },
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: { font: { size: 10 }, autoSkip: false, maxRotation: 0 },
+            },
+            y: {
+              grid: { color: 'rgba(0,0,0,0.05)' },
+              ticks: {
+                font: { size: 11 },
+                callback: v => v === 0 ? '' : '₱' + (v >= 1000 ? (v / 1000).toFixed(1) + 'k' : v),
+              },
+            },
+          },
+        },
+      });
+    });
+    return () => { if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; } };
+  }, [hourValues.join(','), peakHour]);
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+      <div className="flex items-center justify-between mb-1">
+        <h3 className="font-semibold flex items-center gap-2 text-gray-700">
+          <BarChart3 className="w-5 h-5 text-gray-500" />
+          Hourly sales
+        </h3>
+        <span className="text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-2.5 py-1">
+          Peak: {hourLabels[peakHour]}
+        </span>
+      </div>
+      <p className="text-xs text-gray-400 mb-4">When are sales busiest?</p>
+      <div style={{ position: 'relative', height: '200px' }}>
+        <canvas ref={canvasRef}
+          role="img"
+          aria-label="Bar chart showing sales volume by hour of day">
+          Hourly sales distribution across 24 hours.
+        </canvas>
+      </div>
+    </div>
+  );
+};
+
 const fmt = (n) =>
-  '₱' + Number(n).toLocaleString('en-PH', { minimumFractionDigits: 2 });
+  '₱' + Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 });
+
+// ── buildSummary ───────────────────────────────────────────────
+// Fallback: compute totals from the current page of rows only.
+// Used when serverSummary hasn't arrived yet (e.g. still loading).
+// For accurate totals across all pages, App.jsx supplies serverSummary.
+const buildSummary = (salesData) => {
+  if (!salesData?.data?.length) return null;
+
+  let cashSales    = 0;
+  let gcashSales   = 0;
+  let creditSales  = 0;
+  let paymentTotal = 0;
+  let salesCount   = 0;
+  let paymentCount = 0;
+
+  for (const t of salesData.data) {
+    const amount = Math.abs(parseFloat(t.total_amount) || 0);
+    const method = (t.payment_method || '').toLowerCase();
+
+    if (method === 'payment') {
+      paymentTotal += amount;
+      paymentCount += 1;
+    } else {
+      salesCount += 1;
+      if (method === 'cash')        cashSales   += amount;
+      else if (method === 'gcash')  gcashSales  += amount;
+      else if (method === 'credit') creditSales += amount;
+      else                          cashSales   += amount;
+    }
+  }
+
+  const totalSales = cashSales + gcashSales + creditSales;
+
+  return {
+    totalSales,
+    cashSales,
+    gcashSales,
+    creditSales,
+    paymentTotal,
+    totalTransactions: salesCount,
+    paymentTransactions: paymentCount,
+    averageTransaction: salesCount > 0 ? totalSales / salesCount : 0,
+  };
+};
 
 const ReportsInterface = ({
   reportType, setReportType,
   reportDate, setReportDate,
   reportStartDate, setReportStartDate,
   reportEndDate, setReportEndDate,
-  loadSalesReport, salesData, loading,
-  calculateSummary, showNotification,
+  loadSalesReport,
+  salesData,
+  // ── serverSummary: computed by the backend across ALL rows (not just page 1)
+  // This is the fix for the range report showing wrong totals.
+  serverSummary,
+  loading,
+  showNotification,
 }) => {
   const [expandedRows, setExpandedRows] = useState({});
   const [showAllColumns, setShowAllColumns] = useState(false);
   const printRef = useRef();
 
-  const summary = calculateSummary();
+  // Use server summary when available — it covers ALL rows, not just page 1.
+  // Fall back to buildSummary only while the server response is still loading.
+  const summary = serverSummary ?? buildSummary(salesData);
 
-  const toggleRow = (id) => {
+  const toggleRow = (id) =>
     setExpandedRows(prev => ({ ...prev, [id]: !prev[id] }));
-  };
 
-  // ── Quick Date Presets ─────────────────────────────────────
-  const today = () => new Date().toISOString().split('T')[0];
-
-  const yesterday = () => {
-    const d = new Date();
-    d.setDate(d.getDate() - 1);
+  // ── Quick Date Helpers ─────────────────────────────────────
+  const getToday     = () => new Date().toISOString().split('T')[0];
+  const getYesterday = () => {
+    const d = new Date(); d.setDate(d.getDate() - 1);
     return d.toISOString().split('T')[0];
   };
-
-  const thisWeek = () => {
+  const getThisWeekStart = () => {
     const d = new Date();
     const day = d.getDay();
     const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-    return new Date(d.setDate(diff)).toISOString().split('T')[0];
+    return new Date(new Date().setDate(diff)).toISOString().split('T')[0];
   };
-
-  const thisMonth = () => {
+  const getThisMonthStart = () => {
     const d = new Date();
-    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    return `${y}-${m}-01`;
   };
 
-  const setPreset = (preset) => {
+  const setPreset = useCallback((preset) => {
+    const today = getToday();
+
     if (preset === 'today') {
       setReportType('daily');
-      setReportDate(today());
+      setReportDate(today);
+      loadSalesReport({ type: 'daily', date: today });
+
     } else if (preset === 'yesterday') {
+      const yest = getYesterday();
       setReportType('daily');
-      setReportDate(yesterday());
+      setReportDate(yest);
+      loadSalesReport({ type: 'daily', date: yest });
+
     } else if (preset === 'this-week') {
+      const start = getThisWeekStart();
       setReportType('range');
-      setReportStartDate(thisWeek());
-      setReportEndDate(today());
+      setReportStartDate(start);
+      setReportEndDate(today);
+      loadSalesReport({ type: 'range', startDate: start, endDate: today });
+
     } else if (preset === 'this-month') {
+      const start = getThisMonthStart();
       setReportType('range');
-      setReportStartDate(thisMonth());
-      setReportEndDate(today());
+      setReportStartDate(start);
+      setReportEndDate(today);
+      loadSalesReport({ type: 'range', startDate: start, endDate: today });
     }
-    setTimeout(() => loadSalesReport(), 50);
-  };
+  }, [loadSalesReport, setReportType, setReportDate, setReportStartDate, setReportEndDate]);
 
   // ── Pagination ──────────────────────────────────────────────
-  const pagination = salesData && salesData.data
+  const pagination = salesData?.data
     ? {
         currentPage: salesData.current_page || 1,
-        lastPage:    salesData.last_page || 1,
-        total:       salesData.total || 0,
-        perPage:     salesData.per_page || 50,
+        lastPage:    salesData.last_page    || 1,
+        total:       salesData.total        || 0,
+        perPage:     salesData.per_page     || 50,
       }
     : null;
 
@@ -94,20 +324,9 @@ const ReportsInterface = ({
           <title>Sales Report - Alquizalas Store</title>
           <style>
             * { margin: 0; padding: 0; box-sizing: border-box; }
-            body {
-              font-family: 'Courier New', monospace;
-              font-size: 12px;
-              width: 80mm;
-              padding: 3mm;
-              color: #000;
-            }
-            @media print {
-              @page { size: 80mm auto; margin: 0; }
-              body { padding: 3mm; }
-            }
-            .center { text-align: center; }
-            .right  { text-align: right; }
-            .bold   { font-weight: bold; }
+            body { font-family: 'Courier New', monospace; font-size: 12px; width: 80mm; padding: 3mm; color: #000; }
+            @media print { @page { size: 80mm auto; margin: 0; } body { padding: 3mm; } }
+            .center { text-align: center; } .right { text-align: right; } .bold { font-weight: bold; }
             hr { border: none; border-top: 1px dashed #000; margin: 4px 0; }
             table { width: 100%; border-collapse: collapse; }
             td { vertical-align: top; padding: 1px 0; }
@@ -117,19 +336,19 @@ const ReportsInterface = ({
         </head>
         <body>
           <div class="center">
-            <div style="font-weight: bold; font-size: 16px;">ALQUIZALAS STORE</div>
-            <div style="font-size: 11px;">Toledo, Bato, Cebu</div>
-            <div style="font-size: 11px;">0917-XXX-XXXX</div>
+            <div style="font-weight:bold;font-size:16px;">ALQUIZALAS STORE</div>
+            <div style="font-size:11px;">Toledo, Bato, Cebu</div>
+            <div style="font-size:11px;">0917-XXX-XXXX</div>
           </div>
           <hr />
-          <div class="center bold" style="font-size: 13px; margin: 4px 0;">SALES REPORT</div>
-          <div class="center" style="font-size: 11px;">${periodLabel}</div>
+          <div class="center bold" style="font-size:13px;margin:4px 0;">SALES REPORT</div>
+          <div class="center" style="font-size:11px;">${periodLabel}</div>
           <hr />
           ${content}
           <hr />
-          <div class="center" style="font-size: 11px; margin-top: 6px;">
+          <div class="center" style="font-size:11px;margin-top:6px;">
             <div>Printed: ${now}</div>
-            <div style="margin-top: 4px; font-size: 10px; color: #666;">— Alquizalas Store —</div>
+            <div style="margin-top:4px;font-size:10px;color:#666;">— Alquizalas Store —</div>
           </div>
         </body>
       </html>
@@ -150,7 +369,7 @@ const ReportsInterface = ({
             Sales Reports
           </h2>
           <button
-            onClick={loadSalesReport}
+            onClick={() => loadSalesReport()}
             disabled={loading}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 border border-blue-200 rounded-lg disabled:opacity-50"
           >
@@ -161,22 +380,17 @@ const ReportsInterface = ({
 
         {/* Quick Date Presets */}
         <div className="flex flex-wrap gap-2 mb-4">
-          <button onClick={() => setPreset('today')}
-            className="px-3 py-1.5 text-xs font-medium bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 border border-blue-200">
-            Today
-          </button>
-          <button onClick={() => setPreset('yesterday')}
-            className="px-3 py-1.5 text-xs font-medium bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 border border-gray-200">
-            Yesterday
-          </button>
-          <button onClick={() => setPreset('this-week')}
-            className="px-3 py-1.5 text-xs font-medium bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 border border-gray-200">
-            This Week
-          </button>
-          <button onClick={() => setPreset('this-month')}
-            className="px-3 py-1.5 text-xs font-medium bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 border border-gray-200">
-            This Month
-          </button>
+          {[
+            { key: 'today',      label: 'Today',      cls: 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' },
+            { key: 'yesterday',  label: 'Yesterday',  cls: 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100' },
+            { key: 'this-week',  label: 'This Week',  cls: 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100' },
+            { key: 'this-month', label: 'This Month', cls: 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100' },
+          ].map(({ key, label, cls }) => (
+            <button key={key} onClick={() => setPreset(key)}
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg border ${cls}`}>
+              {label}
+            </button>
+          ))}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -195,9 +409,7 @@ const ReportsInterface = ({
           {reportType === 'daily' ? (
             <div>
               <label className="block text-sm font-medium mb-1 text-gray-700">Date</label>
-              <input
-                type="date"
-                value={reportDate}
+              <input type="date" value={reportDate}
                 onChange={(e) => setReportDate(e.target.value)}
                 className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
@@ -206,18 +418,14 @@ const ReportsInterface = ({
             <>
               <div>
                 <label className="block text-sm font-medium mb-1 text-gray-700">Start Date</label>
-                <input
-                  type="date"
-                  value={reportStartDate}
+                <input type="date" value={reportStartDate}
                   onChange={(e) => setReportStartDate(e.target.value)}
                   className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1 text-gray-700">End Date</label>
-                <input
-                  type="date"
-                  value={reportEndDate}
+                <input type="date" value={reportEndDate}
                   onChange={(e) => setReportEndDate(e.target.value)}
                   className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
@@ -226,17 +434,11 @@ const ReportsInterface = ({
           )}
 
           <div className="flex items-end">
-            <button
-              onClick={loadSalesReport}
-              disabled={loading}
-              className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 font-medium transition-colors"
-            >
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  Loading...
-                </span>
-              ) : 'Generate Report'}
+            <button onClick={() => loadSalesReport()} disabled={loading}
+              className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 font-medium transition-colors">
+              {loading
+                ? <span className="flex items-center justify-center gap-2"><RefreshCw className="w-4 h-4 animate-spin" />Loading...</span>
+                : 'Generate Report'}
             </button>
           </div>
         </div>
@@ -245,56 +447,50 @@ const ReportsInterface = ({
       {/* ═══ Summary Cards ═══ */}
       {summary && (
         <>
+          {/* Badge shown when server summary is active (all-rows accurate) */}
+          {serverSummary && pagination && pagination.total > pagination.perPage && (
+            <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700">
+              <TrendingUp className="w-3.5 h-3.5 flex-shrink-0" />
+              Totals cover all {pagination.total} transactions across {pagination.lastPage} pages.
+            </div>
+          )}
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-medium text-gray-500">Total Sales</p>
-                <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                  <DollarSign className="w-5 h-5 text-green-600" />
+            {[
+              {
+                label: 'Total Sales', value: fmt(summary.totalSales),
+                sub: `${summary.totalTransactions} transaction(s)`,
+                icon: DollarSign, bg: 'bg-green-100', iconCls: 'text-green-600',
+              },
+              {
+                label: 'Avg. Transaction', value: fmt(summary.averageTransaction),
+                sub: 'per sale',
+                icon: TrendingUp, bg: 'bg-purple-100', iconCls: 'text-purple-600',
+              },
+              {
+                label: 'Payments Received', value: fmt(summary.paymentTotal),
+                sub: `${summary.paymentTransactions} payment(s)`,
+                icon: Wallet, bg: 'bg-teal-100', iconCls: 'text-teal-600', valCls: 'text-teal-600',
+              },
+              {
+                label: 'Credit Sales', value: fmt(summary.creditSales),
+                sub: summary.totalSales > 0
+                  ? `${((summary.creditSales / summary.totalSales) * 100).toFixed(1)}% of total`
+                  : '0% of total',
+                icon: CreditCard, bg: 'bg-orange-100', iconCls: 'text-orange-600', valCls: 'text-orange-600',
+              },
+            ].map(({ label, value, sub, icon: Icon, bg, iconCls, valCls }) => (
+              <div key={label} className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-shadow">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-sm font-medium text-gray-500">{label}</p>
+                  <div className={`w-10 h-10 ${bg} rounded-full flex items-center justify-center`}>
+                    <Icon className={`w-5 h-5 ${iconCls}`} />
+                  </div>
                 </div>
+                <p className={`text-3xl font-bold ${valCls || 'text-gray-800'}`}>{value}</p>
+                <p className="text-xs text-gray-400 mt-1">{sub}</p>
               </div>
-              <p className="text-3xl font-bold text-gray-800">{fmt(summary.totalSales)}</p>
-              <p className="text-xs text-gray-400 mt-1">{summary.totalTransactions} transaction(s)</p>
-            </div>
-
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-medium text-gray-500">Avg. Transaction</p>
-                <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                  <TrendingUp className="w-5 h-5 text-purple-600" />
-                </div>
-              </div>
-              <p className="text-3xl font-bold text-gray-800">{fmt(summary.averageTransaction)}</p>
-              <p className="text-xs text-gray-400 mt-1">per sale</p>
-            </div>
-
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-medium text-gray-500">Payments Received</p>
-                <div className="w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center">
-                  <Wallet className="w-5 h-5 text-teal-600" />
-                </div>
-              </div>
-              <p className="text-3xl font-bold text-teal-600">
-                {fmt(Math.abs(summary.paymentTotal))}
-              </p>
-              <p className="text-xs text-gray-400 mt-1">{summary.paymentTransactions} payment(s)</p>
-            </div>
-
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-medium text-gray-500">Credit Sales</p>
-                <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
-                  <CreditCard className="w-5 h-5 text-orange-600" />
-                </div>
-              </div>
-              <p className="text-3xl font-bold text-orange-600">{fmt(summary.creditSales)}</p>
-              <p className="text-xs text-gray-400 mt-1">
-                {summary.totalSales > 0
-                  ? ((summary.creditSales / summary.totalSales) * 100).toFixed(1) + '% of total'
-                  : '0% of total'}
-              </p>
-            </div>
+            ))}
           </div>
 
           {/* Payment Method Breakdown Bars */}
@@ -306,26 +502,26 @@ const ReportsInterface = ({
             {summary.totalSales > 0 ? (
               <div className="space-y-4">
                 {[
-                  { label: 'Cash',     value: summary.cashSales,   color: 'bg-green-500',  icon: DollarSign,  textColor: 'text-green-600' },
-                  { label: 'GCash',    value: summary.gcashSales,  color: 'bg-blue-500',   icon: Smartphone,  textColor: 'text-blue-600' },
-                  { label: 'Credit (Utang)', value: summary.creditSales, color: 'bg-orange-500', icon: CreditCard, textColor: 'text-orange-600' },
-                ].map(item => (
-                  <div key={item.label}>
+                  { label: 'Cash',           value: summary.cashSales,   color: 'bg-green-500',  icon: DollarSign,  textColor: 'text-green-600' },
+                  { label: 'GCash',          value: summary.gcashSales,  color: 'bg-blue-500',   icon: Smartphone,  textColor: 'text-blue-600' },
+                  { label: 'Credit (Utang)', value: summary.creditSales, color: 'bg-orange-500', icon: CreditCard,  textColor: 'text-orange-600' },
+                ].map(({ label, value, color, icon: Icon, textColor }) => (
+                  <div key={label}>
                     <div className="flex justify-between text-sm mb-1">
                       <span className="flex items-center gap-1.5">
-                        <item.icon className={`w-4 h-4 ${item.textColor}`} />
-                        <span className="font-medium">{item.label}</span>
+                        <Icon className={`w-4 h-4 ${textColor}`} />
+                        <span className="font-medium">{label}</span>
                       </span>
-                      <span className={`font-semibold ${item.textColor}`}>{fmt(item.value)}</span>
+                      <span className={`font-semibold ${textColor}`}>{fmt(value)}</span>
                     </div>
                     <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
                       <div
-                        className={`${item.color} h-full rounded-full transition-all duration-500`}
-                        style={{ width: `${(item.value / summary.totalSales) * 100}%` }}
+                        className={`${color} h-full rounded-full transition-all duration-500`}
+                        style={{ width: `${summary.totalSales > 0 ? (value / summary.totalSales) * 100 : 0}%` }}
                       />
                     </div>
                     <p className="text-xs text-gray-400 mt-0.5">
-                      {((item.value / summary.totalSales) * 100).toFixed(1)}% of total
+                      {summary.totalSales > 0 ? ((value / summary.totalSales) * 100).toFixed(1) : '0.0'}% of total
                     </p>
                   </div>
                 ))}
@@ -337,7 +533,100 @@ const ReportsInterface = ({
         </>
       )}
 
-      {/* ═══ Print template (hidden) — This is captured as innerHTML for the print window ═══ */}
+      {/* ═══ Analytics Charts ═══ */}
+      {salesData?.data?.length > 0 && (() => {
+        const salesOnly = salesData.data.filter(t => t.payment_method !== 'payment');
+
+        // Daily trend (for date-range reports)
+        const dailyMap = {};
+        salesOnly.forEach(t => {
+          const d = t.sale_date?.split('T')[0] || t.sale_date;
+          dailyMap[d] = (dailyMap[d] || 0) + Math.abs(parseFloat(t.total_amount) || 0);
+        });
+        const dailyLabels = Object.keys(dailyMap).sort();
+        const dailyValues = dailyLabels.map(d => parseFloat(dailyMap[d].toFixed(2)));
+        const showDailyChart = reportType === 'range' && dailyLabels.length > 1;
+
+        // Hourly breakdown
+        const hourMap = {};
+        for (let h = 0; h < 24; h++) hourMap[h] = 0;
+        salesOnly.forEach(t => {
+          const dt = new Date(t.sale_date);
+          const h = dt.getHours();
+          hourMap[h] += Math.abs(parseFloat(t.total_amount) || 0);
+        });
+        const hourLabels = Array.from({ length: 24 }, (_, h) =>
+          h === 0 ? '12am' : h < 12 ? `${h}am` : h === 12 ? '12pm' : `${h - 12}pm`
+        );
+        const hourValues = Array.from({ length: 24 }, (_, h) =>
+          parseFloat((hourMap[h] || 0).toFixed(2))
+        );
+        const peakHour = hourValues.indexOf(Math.max(...hourValues));
+
+        // Top products
+        const productMap = {};
+        salesOnly.forEach(t => {
+          (t.sale_items || []).forEach(item => {
+            const name = item.product_unit?.product?.name || 'Unknown';
+            if (!productMap[name]) productMap[name] = { qty: 0, total: 0 };
+            productMap[name].qty   += parseFloat(item.quantity) || 0;
+            productMap[name].total += parseFloat(item.subtotal) || 0;
+          });
+        });
+        const topProducts = Object.entries(productMap)
+          .map(([name, v]) => ({ name, qty: v.qty, total: parseFloat(v.total.toFixed(2)) }))
+          .sort((a, b) => b.total - a.total)
+          .slice(0, 8);
+        const maxProductTotal = topProducts[0]?.total || 1;
+
+        return (
+          <>
+            {showDailyChart && (
+              <DailyTrendChart dailyLabels={dailyLabels} dailyValues={dailyValues} fmt={fmt} />
+            )}
+
+            <HourlyChart hourLabels={hourLabels} hourValues={hourValues} peakHour={peakHour} fmt={fmt} />
+
+            {topProducts.length > 0 && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                <h3 className="font-semibold mb-4 flex items-center gap-2 text-gray-700">
+                  <ShoppingCart className="w-5 h-5 text-gray-500" />
+                  Top selling products
+                  {pagination && pagination.total > pagination.perPage && (
+                    <span className="text-xs text-gray-400 font-normal ml-1">(page 1 of {pagination.lastPage})</span>
+                  )}
+                </h3>
+                <div className="space-y-3">
+                  {topProducts.map((p, i) => (
+                    <div key={p.name}>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="flex items-center gap-2">
+                          <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold flex items-center justify-center flex-shrink-0">
+                            {i + 1}
+                          </span>
+                          <span className="font-medium text-gray-800 truncate max-w-[200px]">{p.name}</span>
+                        </span>
+                        <span className="flex items-center gap-3 flex-shrink-0">
+                          <span className="text-gray-400 text-xs">{p.qty} sold</span>
+                          <span className="font-semibold text-gray-700">{fmt(p.total)}</span>
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                        <div
+                          className="bg-blue-500 h-full rounded-full transition-all duration-500"
+                          style={{ width: `${(p.total / maxProductTotal) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        );
+      })()}
+
+      {/* ═══ Print template (hidden) ═══ */}
       <div ref={printRef} style={{ display: 'none' }}>
         {summary && (
           <>
@@ -354,7 +643,7 @@ const ReportsInterface = ({
                 <tr><td>Cash</td><td className="right">{fmt(summary.cashSales)}</td></tr>
                 <tr><td>GCash</td><td className="right">{fmt(summary.gcashSales)}</td></tr>
                 <tr><td>Credit (Utang)</td><td className="right">{fmt(summary.creditSales)}</td></tr>
-                <tr><td>Payments Received</td><td className="right">{fmt(Math.abs(summary.paymentTotal))}</td></tr>
+                <tr><td>Payments Received</td><td className="right">{fmt(summary.paymentTotal)}</td></tr>
               </tbody>
             </table>
           </>
@@ -366,10 +655,8 @@ const ReportsInterface = ({
             <table>
               <thead>
                 <tr>
-                  <th>Date</th>
-                  <th>Customer</th>
-                  <th className="th-right">Amount</th>
-                  <th className="th-right">Items</th>
+                  <th>Date</th><th>Customer</th>
+                  <th className="th-right">Amount</th><th className="th-right">Items</th>
                 </tr>
               </thead>
               <tbody>
@@ -390,7 +677,7 @@ const ReportsInterface = ({
       </div>
 
       {/* ═══ Transactions Table ═══ */}
-      {salesData && salesData.data && salesData.data.length > 0 && (
+      {salesData?.data?.length > 0 && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="p-5 border-b flex items-center justify-between">
             <h3 className="font-semibold flex items-center gap-2 text-gray-700">
@@ -403,17 +690,13 @@ const ReportsInterface = ({
               )}
             </h3>
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShowAllColumns(!showAllColumns)}
-                className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-gray-500 hover:bg-gray-100 border rounded-lg"
-              >
+              <button onClick={() => setShowAllColumns(!showAllColumns)}
+                className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-gray-500 hover:bg-gray-100 border rounded-lg">
                 {showAllColumns ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                 {showAllColumns ? 'Compact' : 'Show Items'}
               </button>
-              <button
-                onClick={handlePrint}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 border border-blue-200 rounded-lg"
-              >
+              <button onClick={handlePrint}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 border border-blue-200 rounded-lg">
                 <Printer className="w-4 h-4" />
                 Print
               </button>
@@ -424,14 +707,14 @@ const ReportsInterface = ({
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-6"></th>
+                  <th className="px-4 py-3 w-6"></th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Customer</th>
                   <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Amount</th>
                   <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</th>
                   <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Items</th>
                   {showAllColumns && (
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Payment</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Paid</th>
                   )}
                 </tr>
               </thead>
@@ -448,9 +731,9 @@ const ReportsInterface = ({
                         onClick={() => items.length > 0 && toggleRow(transaction.id)}
                       >
                         <td className="px-4 py-3 text-gray-300 text-sm text-center w-6">
-                          {items.length > 0 ? (
-                            isExpanded ? <ChevronUp className="w-4 h-4 inline" /> : <ChevronDown className="w-4 h-4 inline" />
-                          ) : '—'}
+                          {items.length > 0
+                            ? isExpanded ? <ChevronUp className="w-4 h-4 inline" /> : <ChevronDown className="w-4 h-4 inline" />
+                            : '—'}
                         </td>
                         <td className="px-4 py-3 text-sm whitespace-nowrap">
                           {new Date(transaction.sale_date).toLocaleDateString('en-PH', {
@@ -459,23 +742,25 @@ const ReportsInterface = ({
                         </td>
                         <td className="px-4 py-3 text-sm">
                           <span className={transaction.customer ? 'text-gray-800' : 'text-gray-400 italic'}>
-                            {transaction.customer ? transaction.customer.name : 'Walk-in'}
+                            {transaction.customer?.name || 'Walk-in'}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right text-sm font-semibold">
-                          <span className={isPayment ? 'text-green-600' : 'text-gray-800'}>
-                            {isPayment ? '-' : ''}{fmt(Math.abs(parseFloat(transaction.total_amount)))}
+                          <span className={isPayment ? 'text-teal-600' : 'text-gray-800'}>
+                            {isPayment ? '−' : ''}{fmt(Math.abs(parseFloat(transaction.total_amount)))}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-center">
                           <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${
                             transaction.payment_method === 'cash'    ? 'bg-green-100 text-green-700' :
-                            transaction.payment_method === 'gcash'   ? 'bg-blue-100 text-blue-700' :
+                            transaction.payment_method === 'gcash'   ? 'bg-blue-100 text-blue-700'  :
                             transaction.payment_method === 'credit'  ? 'bg-orange-100 text-orange-700' :
-                            transaction.payment_method === 'payment' ? 'bg-teal-100 text-teal-700' :
+                            transaction.payment_method === 'payment' ? 'bg-teal-100 text-teal-700'  :
                                                                        'bg-gray-100 text-gray-700'
                           }`}>
-                            {transaction.payment_method === 'payment' ? 'PAYMENT' : transaction.payment_method.toUpperCase()}
+                            {transaction.payment_method === 'payment'
+                              ? 'PAYMENT'
+                              : (transaction.payment_method || '').toUpperCase()}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right text-sm text-gray-500">
@@ -483,12 +768,11 @@ const ReportsInterface = ({
                         </td>
                         {showAllColumns && (
                           <td className="px-4 py-3 text-right text-sm">
-                            {isPayment ? fmt(Math.abs(parseFloat(transaction.amount_paid))) : fmt(parseFloat(transaction.amount_paid))}
+                            {fmt(Math.abs(parseFloat(transaction.amount_paid || 0)))}
                           </td>
                         )}
                       </tr>
 
-                      {/* Expanded items row */}
                       {isExpanded && items.length > 0 && (
                         <tr className="bg-gray-50">
                           <td colSpan={showAllColumns ? 7 : 6} className="px-4 py-3">
@@ -530,23 +814,19 @@ const ReportsInterface = ({
                 Page {pagination.currentPage} of {pagination.lastPage}
               </span>
               <div className="flex gap-2">
-                <button
-                  disabled={pagination.currentPage <= 1}
-                  className="px-3 py-1.5 border rounded-lg text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed text-xs"
-                >
+                <button disabled={pagination.currentPage <= 1}
+                  className="px-3 py-1.5 border rounded-lg text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed text-xs">
                   ← Prev
                 </button>
-                <button
-                  disabled={pagination.currentPage >= pagination.lastPage}
-                  className="px-3 py-1.5 border rounded-lg text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed text-xs"
-                >
+                <button disabled={pagination.currentPage >= pagination.lastPage}
+                  className="px-3 py-1.5 border rounded-lg text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed text-xs">
                   Next →
                 </button>
               </div>
             </div>
           )}
 
-          {/* Table footer summary */}
+          {/* Table footer summary — always uses accurate server totals */}
           <div className="px-5 py-3 border-t bg-gray-50">
             <div className="flex justify-end gap-8 text-sm">
               <div>
@@ -554,8 +834,8 @@ const ReportsInterface = ({
                 <span className="font-bold text-gray-800">{fmt(summary?.totalSales || 0)}</span>
               </div>
               <div>
-                <span className="text-gray-500">Payments: </span>
-                <span className="font-bold text-teal-600">{fmt(Math.abs(summary?.paymentTotal || 0))}</span>
+                <span className="text-gray-500">Payments Received: </span>
+                <span className="font-bold text-teal-600">{fmt(summary?.paymentTotal || 0)}</span>
               </div>
               <div>
                 <span className="text-gray-500">Transactions: </span>
@@ -567,7 +847,7 @@ const ReportsInterface = ({
       )}
 
       {/* ═══ Empty states ═══ */}
-      {salesData && salesData.data && salesData.data.length === 0 && (
+      {salesData?.data?.length === 0 && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-10 text-center">
           <AlertCircle className="w-16 h-16 mx-auto mb-4 text-gray-300" />
           <h3 className="text-xl font-semibold mb-2 text-gray-600">No Transactions Found</h3>
