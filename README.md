@@ -1,123 +1,420 @@
+# 💰 POS System
+
 <p align="center">
-  <img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="200" alt="Laravel Logo">
+  <img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="220" alt="Laravel Logo">
   &nbsp;&nbsp;&nbsp;
-  <img src="https://upload.wikimedia.org/wikipedia/commons/a/a7/React-icon.svg" width="70" alt="React Logo">
+  <img src="https://upload.wikimedia.org/wikipedia/commons/a/a7/React-icon.svg" width="80" alt="React Logo">
+</p>
+
+<h3 align="center">
+Modern Point of Sale System
+</h3>
+
+<p align="center">
+Laravel 12 • React 18 • Docker • REST API
 </p>
 
 <p align="center">
-  <strong>Modern Point of Sale System</strong><br>
-  Laravel 12 Backend + React 18 Frontend – Dockerised for OpenMediaVault
-</p>
-
-<p align="center">
-  <a href="https://github.com/Flow258/pos-system/actions"><img src="https://github.com/Flow258/pos-system/workflows/tests/badge.svg" alt="Build Status"></a>
-  <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-  <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
+  <img src="https://img.shields.io/badge/Laravel-12-FF2D20?logo=laravel" alt="Laravel">
+  <img src="https://img.shields.io/badge/React-18-61DAFB?logo=react" alt="React">
+  <img src="https://img.shields.io/badge/Vite-Latest-646CFF?logo=vite" alt="Vite">
+  <img src="https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker" alt="Docker">
+  <img src="https://img.shields.io/badge/License-MIT-green" alt="License">
 </p>
 
 ---
 
-## 📌 Overview
+## 📖 Overview
 
-This is a **complete Point‑of‑Sale (POS) system** designed for retail stores, restaurants, or cyber‑cafes that also sell goods. It features:
+POS System is a modern web-based Point of Sale solution built with Laravel and React.
 
-- **Product & category management** (CRUD, stock tracking)
-- **Shopping cart** with real‑time updates
-- **Customer profiles & loyalty points**
-- **Multiple payment methods** (cash, card, digital wallets)
-- **Sales reports** (daily/weekly, top products, stock alerts)
-- **Receipt printing** (browser‑based)
-- **Multi‑user roles** (admin, cashier, manager)
-- **Fully Dockerised** – easy deployment on any Linux server (OpenMediaVault, Ubuntu, etc.)
+Designed for:
 
-The backend is built with **Laravel 12** (REST API), and the frontend is a **React 18** single‑page application served via Nginx. The whole stack runs inside Docker containers.
+* 🏪 Retail Stores
+* 🍔 Restaurants
+* ☕ Cafés
+* 🎮 Internet Cafés
+* 🛒 Small Businesses
+
+The application provides inventory management, sales processing, customer tracking, reporting, and role-based access control through a responsive and user-friendly interface.
 
 ---
 
-## 🚀 Quick Start (Docker)
+## ✨ Features
 
-### 1. Clone the repository
+### 🛒 Sales Management
+
+* Fast POS checkout
+* Shopping cart functionality
+* Multiple payment methods
+* Receipt generation
+* Transaction history
+
+### 📦 Inventory Management
+
+* Product management
+* Category management
+* Stock tracking
+* Low-stock monitoring
+* Inventory updates in real time
+
+### 👥 Customer Management
+
+* Customer profiles
+* Purchase history
+* Loyalty point support
+* Customer search and lookup
+
+### 📊 Reports & Analytics
+
+* Daily sales reports
+* Weekly sales reports
+* Monthly sales reports
+* Top-selling products
+* Revenue analytics
+
+### 🔐 User Roles & Security
+
+* Administrator
+* Manager
+* Cashier
+* Secure authentication
+* Protected API routes
+
+### 🌐 Modern Architecture
+
+* RESTful API
+* React Single Page Application
+* Docker deployment
+* Responsive UI
+* Scalable backend architecture
+
+---
+
+## 🏗️ Technology Stack
+
+| Layer            | Technology         |
+| ---------------- | ------------------ |
+| Backend          | Laravel 12         |
+| Frontend         | React 18           |
+| Build Tool       | Vite               |
+| Styling          | Tailwind CSS       |
+| API              | REST API           |
+| Database         | MySQL / PostgreSQL |
+| Containerization | Docker             |
+| Reverse Proxy    | Nginx              |
+| Authentication   | JWT / Laravel Auth |
+| Testing          | PHPUnit            |
+
+---
+
+## 📸 Screenshots
+
+Add screenshots to make your repository more professional.
+
+### Dashboard
+
+```text
+docs/screenshots/dashboard.png
+```
+
+### POS Screen
+
+```text
+docs/screenshots/pos-screen.png
+```
+
+### Reports
+
+```text
+docs/screenshots/reports.png
+```
+
+Example:
+
+```md
+![Dashboard](docs/screenshots/dashboard.png)
+```
+
+---
+
+## 🚀 Installation
+
+### Clone Repository
+
 ```bash
 git clone https://github.com/Flow258/pos-system.git
 cd pos-system
+```
 
-2. Build the React frontend
-bash
+---
+
+## ⚙️ Backend Setup
+
+Install dependencies:
+
+```bash
+composer install
+```
+
+Copy environment file:
+
+```bash
+cp .env.example .env
+```
+
+Generate application key:
+
+```bash
+php artisan key:generate
+```
+
+Configure your database in `.env`.
+
+Run migrations:
+
+```bash
+php artisan migrate
+```
+
+(Optional) Seed database:
+
+```bash
+php artisan db:seed
+```
+
+Start Laravel:
+
+```bash
+php artisan serve
+```
+
+---
+
+## ⚛️ Frontend Setup
+
+Navigate to frontend:
+
+```bash
 cd pos-frontend
+```
+
+Install dependencies:
+
+```bash
 npm install
-npm run build   # produces dist/ folder
-cd ..
-3. Configure environment
-Copy the example environment file and edit the database password and JWT secret:
+```
 
-bash
-cp .env.omv .env
-nano .env   # set DB_PASSWORD, JWT_SECRET, APP_URL (your server IP)
-4. Start all containers
-bash
+Run development server:
+
+```bash
+npm run dev
+```
+
+Build production assets:
+
+```bash
+npm run build
+```
+
+---
+
+## 🐳 Docker Deployment
+
+Start all containers:
+
+```bash
 docker compose up -d
-Your POS will be available at http://your-server-ip (default port 80).
+```
 
-Default cashier login:
+Build containers:
 
-Username: admin
-
-Password: password (change immediately!)
-
-📦 Tech Stack
-Component	Technology
-Backend API	Laravel 12 (PHP 8.2)
-Frontend	React 18 + Vite + Tailwind CSS
-Database	PostgreSQL 15 (or MySQL 8)
-Web Server	Nginx (reverse proxy)
-Container	Docker + Docker Compose
-Testing	PHPUnit, Laravel Pint
-🔌 API Endpoints (Examples)
-All API routes are prefixed with /api and require a valid JWT token.
-
-Method	Endpoint	Description
-POST	/api/auth/login	Cashier login
-GET	/api/products	List all products
-POST	/api/cart/add	Add item to cart
-POST	/api/transactions	Complete a sale
-GET	/api/reports/daily	Today’s sales summary
-GET	/api/reports/stock-alerts	Products with low stock
-Full API documentation is available at /api/docs (Swagger UI) after installation.
-
-🐳 Docker Services
-The docker-compose.yml runs four containers:
-
-Service	Purpose
-laravel	PHP‑FPM + Laravel application
-react	Serves the React frontend (static)
-nginx	Reverse proxy (routes /api to Laravel, / to React)
-db	PostgreSQL database
-Optional: redis for caching and queues (uncomment in compose file).
-
-🔧 Maintenance Commands
-bash
-# View logs
-docker compose logs -f laravel
-
-# Run database migrations
-docker compose exec laravel php artisan migrate
-
-# Clear Laravel cache
-docker compose exec laravel php artisan optimize:clear
-
-# Backup database
-docker compose exec db pg_dump -U pos_user pos_db > backup.sql
-
-# Rebuild and restart after code changes
+```bash
 docker compose up -d --build
-📄 License
-This project is open‑source software licensed under the MIT license.
+```
 
-👤 Author
-Flow258 – GitHub
+Stop containers:
 
-Project Repository: https://github.com/Flow258/pos-system
+```bash
+docker compose down
+```
 
-⭐ Support
-If this POS system helps your business, please consider giving it a star on GitHub!
+View logs:
+
+```bash
+docker compose logs -f
+```
+
+---
+
+## 📡 API Endpoints
+
+### Authentication
+
+| Method | Endpoint         |
+| ------ | ---------------- |
+| POST   | /api/auth/login  |
+| POST   | /api/auth/logout |
+| GET    | /api/auth/user   |
+
+### Products
+
+| Method | Endpoint           |
+| ------ | ------------------ |
+| GET    | /api/products      |
+| POST   | /api/products      |
+| PUT    | /api/products/{id} |
+| DELETE | /api/products/{id} |
+
+### Categories
+
+| Method | Endpoint        |
+| ------ | --------------- |
+| GET    | /api/categories |
+| POST   | /api/categories |
+
+### Transactions
+
+| Method | Endpoint          |
+| ------ | ----------------- |
+| POST   | /api/transactions |
+| GET    | /api/transactions |
+
+### Reports
+
+| Method | Endpoint             |
+| ------ | -------------------- |
+| GET    | /api/reports/daily   |
+| GET    | /api/reports/weekly  |
+| GET    | /api/reports/monthly |
+
+---
+
+## 📂 Project Structure
+
+```text
+pos-system/
+│
+├── app/
+├── bootstrap/
+├── config/
+├── database/
+├── public/
+├── resources/
+├── routes/
+├── storage/
+├── tests/
+│
+├── pos-frontend/
+│   ├── src/
+│   ├── public/
+│   ├── package.json
+│   └── vite.config.js
+│
+├── docker/
+├── docker-compose.yml
+├── .env
+└── README.md
+```
+
+---
+
+## 🔧 Useful Commands
+
+### Laravel
+
+```bash
+php artisan migrate
+php artisan db:seed
+php artisan optimize:clear
+php artisan route:list
+php artisan queue:work
+```
+
+### React
+
+```bash
+npm run dev
+npm run build
+npm run preview
+```
+
+### Docker
+
+```bash
+docker compose up -d
+docker compose down
+docker compose logs -f
+docker compose restart
+```
+
+---
+
+## 🧪 Testing
+
+Run backend tests:
+
+```bash
+php artisan test
+```
+
+Run PHPUnit:
+
+```bash
+vendor/bin/phpunit
+```
+
+---
+
+## 🚀 Production Checklist
+
+* Configure HTTPS
+* Change default credentials
+* Configure backups
+* Enable caching
+* Configure queue workers
+* Set secure environment variables
+* Configure monitoring
+
+---
+
+## 🤝 Contributing
+
+Contributions, issues, and feature requests are welcome.
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit changes
+4. Push to your branch
+5. Create a Pull Request
+
+---
+
+## 📜 License
+
+This project is licensed under the MIT License.
+
+---
+
+## 👨‍💻 Author
+
+**Flow258**
+
+GitHub:
+https://github.com/Flow258
+
+Repository:
+https://github.com/Flow258/pos-system
+
+---
+
+## ⭐ Support
+
+If you found this project useful:
+
+* ⭐ Star the repository
+* 🍴 Fork the project
+* 🐛 Report issues
+* 🚀 Contribute improvements
+
+Thank you for supporting the project!
