@@ -1,21 +1,52 @@
-// components/SalesInterface.jsx
-import React, { useState } from 'react';
-import { ShoppingCart, Barcode, Camera, Trash2, Minus, Plus, X, DollarSign, CreditCard, Smartphone, Loader, ExternalLink } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ShoppingCart, Barcode, Trash2, Minus, Plus, X, DollarSign, CreditCard, Smartphone, Loader, ExternalLink, Undo2 } from 'lucide-react';
 import Receipt from './Receipt';
 
 const SalesInterface = ({
-  barcodeInputRef, barcodeInput, setBarcodeInput, handleBarcodeScan, cart, setCart,
-  updateQuantity, removeFromCart, customers, selectedCustomer, setSelectedCustomer,
-  paymentMethod, setPaymentMethod, amountPaid, setAmountPaid, calculateTotal,
-  calculateChange, completeSale, setShowVisionScanner,
-  gcashPayment, setGcashPayment
+  barcodeInputRef,
+  barcodeInput,
+  setBarcodeInput,
+  handleBarcodeScan,
+  cart,
+  setCart,
+  updateQuantity,
+  removeFromCart,
+  customers,
+  selectedCustomer,
+  setSelectedCustomer,
+  paymentMethod,
+  setPaymentMethod,
+  amountPaid,
+  setAmountPaid,
+  calculateTotal,
+  calculateChange,
+  completeSale,
+  gcashPayment,
+  setGcashPayment
 }) => {
   const [receipt, setReceipt] = useState(null);
 
-  // Wrap completeSale so we can capture the returned receipt
+  // ── NEW: Auto-focus the barcode scanner ONLY when the Sales tab is first opened ──
+  useEffect(() => {
+    if (barcodeInputRef.current) {
+      barcodeInputRef.current.focus();
+    }
+  }, []);
+
+  // ── NEW: Keyboard Shortcuts (F1=Cash, F2=GCash, F3=Utang) ──
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.target.tagName === 'INPUT' && e.key !== 'Enter') return;
+      if (e.key === 'F1') { e.preventDefault(); setPaymentMethod('cash'); }
+      if (e.key === 'F2') { e.preventDefault(); setPaymentMethod('gcash'); }
+      if (e.key === 'F3') { e.preventDefault(); setPaymentMethod('credit'); }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [setPaymentMethod]);
+
   const handleCompleteSale = async () => {
     const result = await completeSale();
-    // For GCash, result is null — receipt shows when payment confirms
     if (result) {
       setReceipt(result);
     }
@@ -25,21 +56,22 @@ const SalesInterface = ({
     setReceipt(null);
   };
 
-  // Handle GCash payment confirmed from the polling in App.jsx
-  React.useEffect(() => {
+  useEffect(() => {
     if (gcashPayment?.status === 'paid' && gcashPayment?.pendingReceipt) {
       setReceipt({
         ...gcashPayment.pendingReceipt,
         payment_method: 'gcash',
       });
-      // Clear the GCash state after showing receipt
       setGcashPayment(null);
     }
   }, [gcashPayment?.status]);
 
   const handleReopenGcashPopup = () => {
     if (gcashPayment?.checkoutUrl) {
-      window.open(gcashPayment.checkoutUrl, 'GCash Payment', 'width=500,height=750,scrollbars=yes');
+      const popup = window.open(gcashPayment.checkoutUrl, 'GCash Payment', 'width=500,height=750,scrollbars=yes');
+      if (!popup) {
+        window.location.href = gcashPayment.checkoutUrl; // Fallback for mobile blockers
+      }
     }
   };
 
@@ -52,18 +84,19 @@ const SalesInterface = ({
 
   return (
     <>
-      <div className="flex gap-4 h-full">
+      <div className="flex flex-col lg:flex-row gap-4 h-full">
         {/* Left Panel: Scanner and Cart */}
-        <div className="flex-1 flex flex-col gap-4">
-          <div className="bg-white rounded-lg shadow-md p-4">
+        <div className="flex-1 flex flex-col gap-4 w-full min-h-0">
+          <div className="bg-white rounded-lg shadow-md p-3 sm:p-4">
             <div className="flex items-center gap-2 mb-2">
               <Barcode className="w-5 h-5 text-blue-600" />
-              <h3 className="font-semibold">Scan Product</h3>
+              <h3 className="font-semibold text-sm sm:text-base">Scan Product</h3>
             </div>
             <div className="flex gap-2">
               <input
                 ref={barcodeInputRef}
                 type="text"
+                inputMode="numeric"
                 value={barcodeInput}
                 onChange={(e) => setBarcodeInput(e.target.value)}
                 onKeyDown={(e) => {
@@ -72,67 +105,68 @@ const SalesInterface = ({
                   }
                 }}
                 placeholder="Scan barcode or type and press Enter..."
-                className="flex-1 px-4 py-3 border-2 border-blue-300 rounded-lg focus:border-blue-500 focus:outline-none text-lg"
+                className="flex-1 px-3 py-2 sm:px-4 sm:py-3 border-2 border-blue-300 rounded-lg focus:border-blue-500 focus:outline-none text-base sm:text-lg"
               />
-              <button
-                onClick={() => setShowVisionScanner(true)}
-                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 flex items-center gap-2 font-semibold"
-              >
-                <Camera className="w-5 h-5" />
-                AI Scan
-              </button>
             </div>
           </div>
 
-          <div className="flex-1 bg-white rounded-lg shadow-md p-4 overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between mb-4">
+          <div className="flex-1 bg-white rounded-lg shadow-md p-3 sm:p-4 overflow-hidden flex flex-col min-h-[300px] lg:min-h-0">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
               <div className="flex items-center gap-2">
                 <ShoppingCart className="w-5 h-5 text-blue-600" />
-                <h3 className="font-semibold">Shopping Cart ({cart.length})</h3>
+                <h3 className="font-semibold text-sm sm:text-base">Shopping Cart ({cart.length})</h3>
               </div>
               {cart.length > 0 && (
-                <button onClick={() => setCart([])} className="text-red-500 hover:text-red-700 text-sm flex items-center gap-1">
-                  <Trash2 className="w-4 h-4" />
-                  Clear All
-                </button>
+                <div className="flex gap-2">
+                  {/* ── NEW: Void Last Item Button ── */}
+                  <button 
+                    onClick={() => removeFromCart(cart[cart.length - 1].id)} 
+                    className="text-orange-600 hover:text-orange-700 text-xs sm:text-sm flex items-center gap-1 bg-orange-50 px-2 py-1 rounded active:scale-95"
+                  >
+                    <Undo2 className="w-4 h-4" /> Void Last
+                  </button>
+                  <button onClick={() => setCart([])} className="text-red-500 hover:text-red-700 text-xs sm:text-sm flex items-center gap-1 active:scale-95">
+                    <Trash2 className="w-4 h-4" /> Clear All
+                  </button>
+                </div>
               )}
             </div>
 
             {cart.length === 0 ? (
               <div className="flex-1 flex items-center justify-center text-gray-400">
                 <div className="text-center">
-                  <ShoppingCart className="w-16 h-16 mx-auto mb-2 opacity-30" />
-                  <p>Cart is empty</p>
-                  <p className="text-sm">Scan products to begin</p>
+                  <ShoppingCart className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-2 opacity-30" />
+                  <p className="text-sm sm:text-base">Cart is empty</p>
+                  <p className="text-xs sm:text-sm">Scan products to begin</p>
                 </div>
               </div>
             ) : (
-              <div className="flex-1 overflow-y-auto space-y-2 pr-2">
+              <div className="flex-1 overflow-y-auto space-y-2 pr-1 sm:pr-2">
                 {cart.map((item) => (
-                  <div key={item.id} className="border rounded-lg p-3 flex items-center gap-3">
-                    <div className="flex-1">
-                      <h4 className="font-medium">{item.product.name}</h4>
-                      <p className="text-sm text-gray-600">
+                  <div key={item.id} className="border rounded-lg p-2 sm:p-3 flex items-center gap-2 sm:gap-3">
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-medium text-sm sm:text-base truncate">{item.product.name}</h4>
+                      <p className="text-xs sm:text-sm text-gray-600">
                         {item.unit_name} • ₱{parseFloat(item.price).toFixed(2)}
                         <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded font-medium">
                           {item.price_type}
                         </span>
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="w-8 h-8 bg-gray-200 rounded hover:bg-gray-300 flex items-center justify-center">
+                    <div className="flex items-center gap-1 sm:gap-2">
+                      <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="w-7 h-7 sm:w-8 sm:h-8 bg-gray-200 rounded hover:bg-gray-300 flex items-center justify-center active:scale-90">
                         <Minus className="w-4 h-4" />
                       </button>
-                      <span className="w-12 text-center font-semibold text-lg">{item.quantity}</span>
-                      <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="w-8 h-8 bg-gray-200 rounded hover:bg-gray-300 flex items-center justify-center">
-                        <Plus className="w-4 h-5" />
+                      <span className="w-8 sm:w-12 text-center font-semibold text-base sm:text-lg">{item.quantity}</span>
+                      <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="w-7 h-7 sm:w-8 sm:h-8 bg-gray-200 rounded hover:bg-gray-300 flex items-center justify-center active:scale-90">
+                        <Plus className="w-4 h-4" />
                       </button>
                     </div>
-                    <div className="w-24 text-right">
-                      <p className="font-semibold text-lg">₱{(parseFloat(item.price) * item.quantity).toFixed(2)}</p>
+                    <div className="w-16 sm:w-24 text-right">
+                      <p className="font-semibold text-sm sm:text-lg">₱{(parseFloat(item.price) * item.quantity).toFixed(2)}</p>
                     </div>
-                    <button onClick={() => removeFromCart(item.id)} className="text-gray-400 hover:text-red-500">
-                      <X className="w-5 h-5" />
+                    <button onClick={() => removeFromCart(item.id)} className="text-gray-400 hover:text-red-500 active:scale-90">
+                      <X className="w-4 h-4 sm:w-5 sm:h-5" />
                     </button>
                   </div>
                 ))}
@@ -142,15 +176,15 @@ const SalesInterface = ({
         </div>
 
         {/* Right Panel: Checkout */}
-        <div className="w-96 bg-white rounded-lg shadow-md p-4 flex flex-col">
-          <h3 className="font-semibold mb-4 flex items-center gap-2 text-lg">
+        <div className="w-full lg:w-96 bg-white rounded-lg shadow-md p-3 sm:p-4 flex flex-col">
+          <h3 className="font-semibold mb-3 sm:mb-4 flex items-center gap-2 text-base sm:text-lg">
             <DollarSign className="w-5 h-5 text-green-600" />
             Checkout
           </h3>
 
-          <div className="mb-4">
-            <label className="text-sm font-medium text-gray-700 mb-1 block">Customer (Optional)</label>
-            <select value={selectedCustomer || ''} onChange={(e) => setSelectedCustomer(e.target.value || null)} className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500 bg-white">
+          <div className="mb-3 sm:mb-4">
+            <label className="text-xs sm:text-sm font-medium text-gray-700 mb-1 block">Customer (Optional)</label>
+            <select value={selectedCustomer || ''} onChange={(e) => setSelectedCustomer(e.target.value || null)} className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500 bg-white text-sm sm:text-base">
               <option value="">Walk-in Customer</option>
               {customers.map(customer => (
                 <option key={customer.id} value={customer.id}>
@@ -160,53 +194,61 @@ const SalesInterface = ({
             </select>
           </div>
 
-          <div className="mb-4">
-            <label className="text-sm font-medium text-gray-700 mb-2 block">Payment Method</label>
+          <div className="mb-3 sm:mb-4">
+            <label className="text-xs sm:text-sm font-medium text-gray-700 mb-2 block">Payment Method</label>
             <div className="grid grid-cols-3 gap-2">
-              <button onClick={() => setPaymentMethod('cash')} className={`py-3 rounded-lg border-2 flex flex-col items-center gap-1 transition-all ${paymentMethod === 'cash' ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400'}`}>
-                <DollarSign className="w-5 h-5" />
+              <button onClick={() => setPaymentMethod('cash')} className={`py-2 sm:py-3 rounded-lg border-2 flex flex-col items-center gap-1 transition-all ${paymentMethod === 'cash' ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400'}`}>
+                <DollarSign className="w-4 h-4 sm:w-5 sm:h-5" />
                 <span className="text-xs font-medium">Cash</span>
               </button>
-              <button onClick={() => setPaymentMethod('gcash')} className={`py-3 rounded-lg border-2 flex flex-col items-center gap-1 transition-all ${paymentMethod === 'gcash' ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400'}`}>
-                <Smartphone className="w-5 h-5" />
+              <button onClick={() => setPaymentMethod('gcash')} className={`py-2 sm:py-3 rounded-lg border-2 flex flex-col items-center gap-1 transition-all ${paymentMethod === 'gcash' ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400'}`}>
+                <Smartphone className="w-4 h-4 sm:w-5 sm:h-5" />
                 <span className="text-xs font-medium">GCash</span>
               </button>
-              <button onClick={() => setPaymentMethod('credit')} className={`py-3 rounded-lg border-2 flex flex-col items-center gap-1 transition-all ${paymentMethod === 'credit' ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400'}`}>
-                <CreditCard className="w-5 h-5" />
-                <span className="text-xs font-medium">Credit</span>
+              <button onClick={() => setPaymentMethod('credit')} className={`py-2 sm:py-3 rounded-lg border-2 flex flex-col items-center gap-1 transition-all ${paymentMethod === 'credit' ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400'}`}>
+                <CreditCard className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="text-xs font-medium">Utang</span>
               </button>
             </div>
           </div>
 
           {paymentMethod !== 'credit' && paymentMethod !== 'gcash' && (
-            <div className="mb-4">
-              <label className="text-sm font-medium text-gray-700 mb-1 block">Amount Paid</label>
-              <input type="number" value={amountPaid} onChange={(e) => setAmountPaid(e.target.value)} placeholder="0.00" className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500 text-right text-lg" />
+            <div className="mb-3 sm:mb-4">
+              <label className="text-xs sm:text-sm font-medium text-gray-700 mb-1 block">Amount Paid</label>
+              <input type="number" inputMode="decimal" value={amountPaid} onChange={(e) => setAmountPaid(e.target.value)} placeholder="0.00" className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500 text-right text-base sm:text-lg mb-2" />
+              
+              {/* ── NEW: Quick Cash Buttons ── */}
+              <div className="grid grid-cols-4 gap-2">
+                <button onClick={() => setAmountPaid(calculateTotal().toFixed(2))} className="py-2 bg-gray-100 hover:bg-gray-200 rounded text-xs font-bold active:scale-95">Exact</button>
+                <button onClick={() => setAmountPaid('100')} className="py-2 bg-gray-100 hover:bg-gray-200 rounded text-xs font-bold active:scale-95">₱100</button>
+                <button onClick={() => setAmountPaid('500')} className="py-2 bg-gray-100 hover:bg-gray-200 rounded text-xs font-bold active:scale-95">₱500</button>
+                <button onClick={() => setAmountPaid('1000')} className="py-2 bg-gray-100 hover:bg-gray-200 rounded text-xs font-bold active:scale-95">₱1000</button>
+              </div>
             </div>
           )}
 
           {paymentMethod === 'gcash' && (
-            <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-              <p className="text-sm text-blue-800 flex items-center gap-2">
+            <div className="mb-3 sm:mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+              <p className="text-xs sm:text-sm text-blue-800 flex items-center gap-2">
                 <Smartphone className="w-4 h-4" />
                 GCash via PayMongo — popup will open after checkout
               </p>
             </div>
           )}
 
-          <div className="flex-1 bg-gray-50 rounded-lg p-4 mb-4">
+          <div className="flex-1 bg-gray-50 rounded-lg p-3 sm:p-4 mb-3 sm:mb-4">
             <div className="space-y-2">
-              <div className="flex justify-between text-lg">
+              <div className="flex justify-between text-sm sm:text-lg">
                 <span className="text-gray-600">Subtotal:</span>
                 <span className="font-medium">₱{calculateTotal().toFixed(2)}</span>
               </div>
               {paymentMethod !== 'credit' && paymentMethod !== 'gcash' && amountPaid > 0 && (
                 <>
-                  <div className="flex justify-between text-lg">
+                  <div className="flex justify-between text-sm sm:text-lg">
                     <span className="text-gray-600">Amount Paid:</span>
                     <span className="font-medium">₱{parseFloat(amountPaid).toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between text-2xl font-bold pt-2 border-t mt-2">
+                  <div className="flex justify-between text-xl sm:text-2xl font-bold pt-2 border-t mt-2">
                     <span>Change:</span>
                     <span className={calculateChange() >= 0 ? 'text-green-600' : 'text-red-600'}>
                       ₱{calculateChange().toFixed(2)}
@@ -215,13 +257,13 @@ const SalesInterface = ({
                 </>
               )}
               {paymentMethod === 'credit' && (
-                <div className="flex justify-between text-2xl font-bold pt-2 border-t mt-2">
+                <div className="flex justify-between text-xl sm:text-2xl font-bold pt-2 border-t mt-2">
                   <span>Total (Credit):</span>
                   <span className="text-orange-600">₱{calculateTotal().toFixed(2)}</span>
                 </div>
               )}
               {paymentMethod === 'gcash' && (
-                <div className="flex justify-between text-2xl font-bold pt-2 border-t mt-2">
+                <div className="flex justify-between text-xl sm:text-2xl font-bold pt-2 border-t mt-2">
                   <span>Total (GCash):</span>
                   <span className="text-blue-600">₱{calculateTotal().toFixed(2)}</span>
                 </div>
@@ -229,25 +271,28 @@ const SalesInterface = ({
             </div>
           </div>
 
-          <button
-            onClick={handleCompleteSale}
-            disabled={cart.length === 0}
-            className={`w-full py-4 rounded-lg font-semibold text-white text-lg transition-colors ${cart.length === 0 ? 'bg-gray-300 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
-          >
-            {paymentMethod === 'gcash' ? 'Pay with GCash' : 'Complete Sale'}
-          </button>
+          {/* ── NEW: Sticky Checkout Button Container ── */}
+          <div className="sticky bottom-0 bg-white pt-2">
+            <button
+              onClick={handleCompleteSale}
+              disabled={cart.length === 0}
+              className={`w-full py-3 sm:py-4 rounded-lg font-semibold text-white text-base sm:text-lg transition-colors ${cart.length === 0 ? 'bg-gray-300 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 active:scale-95'}`}
+            >
+              {paymentMethod === 'gcash' ? 'Pay with GCash' : 'Complete Sale'}
+            </button>
+          </div>
         </div>
       </div>
 
       {/* ── GCash Payment Processing Overlay ── */}
       {gcashPayment && gcashPayment.status === 'pending' && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70] p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 text-center">
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-[70] p-0 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-2xl w-full sm:max-w-md p-4 sm:p-6 text-center">
             <div className="mb-4">
               <Loader className="w-12 h-12 text-blue-600 animate-spin mx-auto" />
             </div>
-            <h3 className="text-xl font-bold mb-2">Processing GCash Payment</h3>
-            <p className="text-gray-600 mb-4">
+            <h3 className="text-lg sm:text-xl font-bold mb-2">Processing GCash Payment</h3>
+            <p className="text-gray-600 text-sm mb-4">
               Complete your payment in the PayMongo popup window.
               <br/>
               This page will update automatically once confirmed.
@@ -256,23 +301,23 @@ const SalesInterface = ({
             {gcashPayment.pendingReceipt && (
               <div className="bg-gray-50 rounded-lg p-4 mb-4">
                 <p className="text-sm text-gray-500">Amount Due</p>
-                <p className="text-3xl font-bold text-blue-600">
+                <p className="text-2xl sm:text-3xl font-bold text-blue-600">
                   ₱{parseFloat(gcashPayment.pendingReceipt.total).toFixed(2)}
                 </p>
               </div>
             )}
 
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <button
                 onClick={handleReopenGcashPopup}
-                className="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 font-semibold flex items-center justify-center gap-2"
+                className="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 font-semibold flex items-center justify-center gap-2 text-sm active:scale-95"
               >
                 <ExternalLink className="w-5 h-5" />
                 Reopen PayMongo
               </button>
               <button
                 onClick={handleCancelGcash}
-                className="px-6 py-3 border rounded-lg hover:bg-gray-50 text-gray-700"
+                className="px-6 py-3 border rounded-lg hover:bg-gray-50 text-gray-700 text-sm"
               >
                 Cancel
               </button>
