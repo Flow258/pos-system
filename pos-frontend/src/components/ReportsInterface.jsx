@@ -1,4 +1,3 @@
-// components/ReportsInterface.jsx
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import {
   TrendingUp, DollarSign, ShoppingCart, CreditCard, Smartphone,
@@ -78,9 +77,9 @@ const DailyTrendChart = ({ dailyLabels, dailyValues, fmt }) => {
   const peak = dailyLabels[dailyValues.indexOf(Math.max(...dailyValues))];
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-5">
       <div className="flex items-center justify-between mb-1">
-        <h3 className="font-semibold flex items-center gap-2 text-gray-700">
+        <h3 className="font-semibold flex items-center gap-2 text-gray-700 text-sm sm:text-base">
           <TrendingUp className="w-5 h-5 text-gray-500" />
           Daily sales trend
         </h3>
@@ -155,9 +154,9 @@ const HourlyChart = ({ hourLabels, hourValues, peakHour, fmt }) => {
   }, [hourValues.join(','), peakHour]);
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-5">
       <div className="flex items-center justify-between mb-1">
-        <h3 className="font-semibold flex items-center gap-2 text-gray-700">
+        <h3 className="font-semibold flex items-center gap-2 text-gray-700 text-sm sm:text-base">
           <BarChart3 className="w-5 h-5 text-gray-500" />
           Hourly sales
         </h3>
@@ -181,9 +180,6 @@ const fmt = (n) =>
   '₱' + Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 });
 
 // ── buildSummary ───────────────────────────────────────────────
-// Fallback: compute totals from the current page of rows only.
-// Used when serverSummary hasn't arrived yet (e.g. still loading).
-// For accurate totals across all pages, App.jsx supplies serverSummary.
 const buildSummary = (salesData) => {
   if (!salesData?.data?.length) return null;
 
@@ -231,8 +227,6 @@ const ReportsInterface = ({
   reportEndDate, setReportEndDate,
   loadSalesReport,
   salesData,
-  // ── serverSummary: computed by the backend across ALL rows (not just page 1)
-  // This is the fix for the range report showing wrong totals.
   serverSummary,
   loading,
   showNotification,
@@ -241,8 +235,6 @@ const ReportsInterface = ({
   const [showAllColumns, setShowAllColumns] = useState(false);
   const printRef = useRef();
 
-  // Use server summary when available — it covers ALL rows, not just page 1.
-  // Fall back to buildSummary only while the server response is still loading.
   const summary = serverSummary ?? buildSummary(salesData);
 
   const toggleRow = (id) =>
@@ -362,16 +354,16 @@ const ReportsInterface = ({
     <div className="space-y-4">
 
       {/* ═══ Report Controls ═══ */}
-      <div className="bg-white rounded-xl shadow-md p-5 border border-gray-100">
+      <div className="bg-white rounded-xl shadow-md p-4 sm:p-5 border border-gray-100">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold flex items-center gap-2">
-            <BarChart3 className="w-6 h-6 text-blue-600" />
+          <h2 className="text-base sm:text-xl font-bold flex items-center gap-2">
+            <BarChart3 className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
             Sales Reports
           </h2>
           <button
             onClick={() => loadSalesReport()}
             disabled={loading}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 border border-blue-200 rounded-lg disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm text-blue-600 hover:bg-blue-50 border border-blue-200 rounded-lg disabled:opacity-50"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             Refresh
@@ -393,13 +385,13 @@ const ReportsInterface = ({
           ))}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 sm:gap-4">
           <div>
-            <label className="block text-sm font-medium mb-1 text-gray-700">Report Type</label>
+            <label className="block text-xs sm:text-sm font-medium mb-1 text-gray-700">Report Type</label>
             <select
               value={reportType}
               onChange={(e) => setReportType(e.target.value)}
-              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm"
             >
               <option value="daily">Daily Report</option>
               <option value="range">Date Range</option>
@@ -408,26 +400,26 @@ const ReportsInterface = ({
 
           {reportType === 'daily' ? (
             <div>
-              <label className="block text-sm font-medium mb-1 text-gray-700">Date</label>
+              <label className="block text-xs sm:text-sm font-medium mb-1 text-gray-700">Date</label>
               <input type="date" value={reportDate}
                 onChange={(e) => setReportDate(e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
               />
             </div>
           ) : (
             <>
               <div>
-                <label className="block text-sm font-medium mb-1 text-gray-700">Start Date</label>
+                <label className="block text-xs sm:text-sm font-medium mb-1 text-gray-700">Start Date</label>
                 <input type="date" value={reportStartDate}
                   onChange={(e) => setReportStartDate(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1 text-gray-700">End Date</label>
+                <label className="block text-xs sm:text-sm font-medium mb-1 text-gray-700">End Date</label>
                 <input type="date" value={reportEndDate}
                   onChange={(e) => setReportEndDate(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 />
               </div>
             </>
@@ -435,7 +427,7 @@ const ReportsInterface = ({
 
           <div className="flex items-end">
             <button onClick={() => loadSalesReport()} disabled={loading}
-              className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 font-medium transition-colors">
+              className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 font-medium transition-colors text-sm active:scale-95">
               {loading
                 ? <span className="flex items-center justify-center gap-2"><RefreshCw className="w-4 h-4 animate-spin" />Loading...</span>
                 : 'Generate Report'}
@@ -455,7 +447,7 @@ const ReportsInterface = ({
             </div>
           )}
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
             {[
               {
                 label: 'Total Sales', value: fmt(summary.totalSales),
@@ -480,22 +472,22 @@ const ReportsInterface = ({
                 icon: CreditCard, bg: 'bg-orange-100', iconCls: 'text-orange-600', valCls: 'text-orange-600',
               },
             ].map(({ label, value, sub, icon: Icon, bg, iconCls, valCls }) => (
-              <div key={label} className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-shadow">
+              <div key={label} className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-5 hover:shadow-md transition-shadow">
                 <div className="flex items-center justify-between mb-3">
-                  <p className="text-sm font-medium text-gray-500">{label}</p>
-                  <div className={`w-10 h-10 ${bg} rounded-full flex items-center justify-center`}>
-                    <Icon className={`w-5 h-5 ${iconCls}`} />
+                  <p className="text-xs sm:text-sm font-medium text-gray-500">{label}</p>
+                  <div className={`w-8 h-8 sm:w-10 sm:h-10 ${bg} rounded-full flex items-center justify-center`}>
+                    <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${iconCls}`} />
                   </div>
                 </div>
-                <p className={`text-3xl font-bold ${valCls || 'text-gray-800'}`}>{value}</p>
-                <p className="text-xs text-gray-400 mt-1">{sub}</p>
+                <p className={`text-lg sm:text-3xl font-bold ${valCls || 'text-gray-800'}`}>{value}</p>
+                <p className="text-[10px] sm:text-xs text-gray-400 mt-1">{sub}</p>
               </div>
             ))}
           </div>
 
           {/* Payment Method Breakdown Bars */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <h3 className="font-semibold mb-4 flex items-center gap-2 text-gray-700">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-5">
+            <h3 className="font-semibold mb-4 flex items-center gap-2 text-gray-700 text-sm sm:text-base">
               <BarChart3 className="w-5 h-5 text-gray-500" />
               Payment Method Breakdown
             </h3>
@@ -588,8 +580,8 @@ const ReportsInterface = ({
             <HourlyChart hourLabels={hourLabels} hourValues={hourValues} peakHour={peakHour} fmt={fmt} />
 
             {topProducts.length > 0 && (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-                <h3 className="font-semibold mb-4 flex items-center gap-2 text-gray-700">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-5">
+                <h3 className="font-semibold mb-4 flex items-center gap-2 text-gray-700 text-sm sm:text-base">
                   <ShoppingCart className="w-5 h-5 text-gray-500" />
                   Top selling products
                   {pagination && pagination.total > pagination.perPage && (
@@ -604,7 +596,7 @@ const ReportsInterface = ({
                           <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold flex items-center justify-center flex-shrink-0">
                             {i + 1}
                           </span>
-                          <span className="font-medium text-gray-800 truncate max-w-[200px]">{p.name}</span>
+                          <span className="font-medium text-gray-800 truncate max-w-[120px] sm:max-w-[200px]">{p.name}</span>
                         </span>
                         <span className="flex items-center gap-3 flex-shrink-0">
                           <span className="text-gray-400 text-xs">{p.qty} sold</span>
@@ -679,8 +671,8 @@ const ReportsInterface = ({
       {/* ═══ Transactions Table ═══ */}
       {salesData?.data?.length > 0 && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-5 border-b flex items-center justify-between">
-            <h3 className="font-semibold flex items-center gap-2 text-gray-700">
+          <div className="p-3 sm:p-5 border-b flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+            <h3 className="font-semibold flex items-center gap-2 text-gray-700 text-sm sm:text-base">
               <FileText className="w-5 h-5 text-gray-500" />
               Sales & Payment Transactions
               {pagination && (
@@ -696,7 +688,7 @@ const ReportsInterface = ({
                 {showAllColumns ? 'Compact' : 'Show Items'}
               </button>
               <button onClick={handlePrint}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 border border-blue-200 rounded-lg">
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm text-blue-600 hover:bg-blue-50 border border-blue-200 rounded-lg">
                 <Printer className="w-4 h-4" />
                 Print
               </button>
@@ -704,7 +696,7 @@ const ReportsInterface = ({
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full min-w-[600px]">
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-4 py-3 w-6"></th>
@@ -809,7 +801,7 @@ const ReportsInterface = ({
 
           {/* Pagination */}
           {pagination && pagination.lastPage > 1 && (
-            <div className="px-5 py-3 border-t bg-gray-50 flex items-center justify-between text-sm">
+            <div className="px-3 sm:px-5 py-3 border-t bg-gray-50 flex items-center justify-between text-xs sm:text-sm">
               <span className="text-gray-500">
                 Page {pagination.currentPage} of {pagination.lastPage}
               </span>
@@ -826,9 +818,9 @@ const ReportsInterface = ({
             </div>
           )}
 
-          {/* Table footer summary — always uses accurate server totals */}
-          <div className="px-5 py-3 border-t bg-gray-50">
-            <div className="flex justify-end gap-8 text-sm">
+          {/* Table footer summary */}
+          <div className="px-3 sm:px-5 py-3 border-t bg-gray-50">
+            <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-8 text-xs sm:text-sm">
               <div>
                 <span className="text-gray-500">Total Sales: </span>
                 <span className="font-bold text-gray-800">{fmt(summary?.totalSales || 0)}</span>
@@ -850,8 +842,8 @@ const ReportsInterface = ({
       {salesData?.data?.length === 0 && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-10 text-center">
           <AlertCircle className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-          <h3 className="text-xl font-semibold mb-2 text-gray-600">No Transactions Found</h3>
-          <p className="text-gray-400">No sales or payment transactions for the selected period.</p>
+          <h3 className="text-lg sm:text-xl font-semibold mb-2 text-gray-600">No Transactions Found</h3>
+          <p className="text-gray-400 text-sm">No sales or payment transactions for the selected period.</p>
           <div className="mt-4 flex justify-center gap-3">
             <button onClick={() => setPreset('today')} className="px-4 py-2 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 border border-blue-200">
               Try Today
@@ -866,15 +858,15 @@ const ReportsInterface = ({
       {!salesData && !loading && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-10 text-center">
           <BarChart3 className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-          <h3 className="text-xl font-semibold mb-2 text-gray-600">Generate Sales Report</h3>
-          <p className="text-gray-400">Select a date or date range and click "Generate Report"</p>
+          <h3 className="text-lg sm:text-xl font-semibold mb-2 text-gray-600">Generate Sales Report</h3>
+          <p className="text-gray-400 text-sm">Select a date or date range and click "Generate Report"</p>
         </div>
       )}
 
       {loading && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-10 text-center">
           <RefreshCw className="w-10 h-10 mx-auto mb-4 text-blue-400 animate-spin" />
-          <p className="text-gray-500 font-medium">Loading report data...</p>
+          <p className="text-gray-500 font-medium text-sm">Loading report data...</p>
         </div>
       )}
     </div>
