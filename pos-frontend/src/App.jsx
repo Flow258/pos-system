@@ -42,7 +42,6 @@ const POSSystem = () => {
   const [reportStartDate, setReportStartDate] = useState('');
   const [reportEndDate, setReportEndDate] = useState('');
   const [salesData, setSalesData] = useState(null);
-  // ── NEW: server-computed summary (always covers ALL rows, not just page 1) ──
   const [serverSummary, setServerSummary] = useState(null);
   const [loading, setLoading] = useState(false);
   const barcodeInputRef = useRef(null);
@@ -58,6 +57,33 @@ const POSSystem = () => {
     units: [{ unit_name: 'Piece', barcode: '', price: '', price_type: 'retail', conversion_factor: '1' }]
   });
 
+  // ── NEW: Prevent Tablet/Phone Screen from Sleeping ──
+  useEffect(() => {
+    let wakeLock = null;
+
+    const requestWakeLock = async () => {
+      try {
+        wakeLock = await navigator.wakeLock.request('screen');
+      } catch (err) {
+        console.log('Wake Lock not supported or denied.');
+      }
+    };
+
+    requestWakeLock();
+
+    const handleVisibilityChange = () => {
+      if (wakeLock !== null && document.visibilityState === 'visible') {
+        requestWakeLock();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      if (wakeLock) wakeLock.release();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
   useEffect(() => {
     loadCustomers();
     loadProducts();
@@ -70,21 +96,33 @@ const POSSystem = () => {
     }
   }, [activeTab]);
 
-  useEffect(() => {
-    if (activeTab === 'sales' && barcodeInputRef.current) {
-      barcodeInputRef.current.focus();
-    }
-  }, [activeTab]);
-
   const showNotification = (message, type = 'success') => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 3000);
+  };
+
+  // ── NEW: Audio Beeps for Cashier Feedback ──
+  const playSuccessSound = () => {
+    try {
+      const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUrDk');
+      audio.volume = 0.3;
+      audio.play().catch(() => {});
+    } catch (e) {}
+  };
+
+  const playErrorSound = () => {
+    try {
+      const audio = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=');
+      audio.volume = 0.5;
+      audio.play().catch(() => {});
+    } catch (e) {}
   };
 
   const handleVisionDetection = (productUnit) => {
     if (!productUnit) return;
     if (!productUnit.stock_info?.has_stock) {
       showNotification('Insufficient stock!', 'error');
+      playErrorSound();
       return;
     }
     const existingItem = cart.find(item => item.id === productUnit.id);
@@ -94,11 +132,7 @@ const POSSystem = () => {
       setCart(prev => [...prev, { ...productUnit, quantity: 1 }]);
     }
     showNotification(`✓ ${productUnit.product?.name || productUnit.name} added via AI Vision!`, 'success');
-    try {
-      const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUrDk');
-      audio.volume = 0.3;
-      audio.play().catch(() => {});
-    } catch (e) {}
+    playSuccessSound();
   };
 
   const loadCustomers = async () => {
@@ -214,18 +248,22 @@ const POSSystem = () => {
       if (data.success) {
         if (!data.data.stock_info.has_stock) {
           showNotification('Insufficient stock!', 'error');
+          playErrorSound();
           return;
         }
         addToCart(data.data);
         showNotification(`Added ${data.data.product.name} to cart`);
+        playSuccessSound();
       } else {
         showNotification('Product not found', 'error');
+        playErrorSound();
       }
     } catch (error) {
       showNotification('Error scanning product', 'error');
+      playErrorSound();
     }
     setBarcodeInput('');
-    barcodeInputRef.current?.focus();
+    if (barcodeInputRef.current) barcodeInputRef.current.focus();
   };
 
   const addToCart = (productUnit) => {
@@ -337,7 +375,11 @@ const POSSystem = () => {
 
           const checkoutUrl = payData.data.checkout_url;
           const sessionId   = payData.data.paymongo_session_id;
+          
           const popup = window.open(checkoutUrl, 'GCash Payment', 'width=500,height=750,scrollbars=yes');
+          if (!popup) {
+            window.location.href = checkoutUrl;
+          }
 
           setGcashPayment({
             checkoutUrl,
@@ -472,17 +514,8 @@ const POSSystem = () => {
     setShowProductModal(true);
   };
 
-  // ── loadSalesReport ────────────────────────────────────────────────────────
-  // Fires TWO requests in parallel:
-  //   1. /api/sales?...&per_page=50   → paginated rows for the table & charts
-  //   2. /api/sales/summary?...       → server-computed totals across ALL rows
-  //
-  // The summary cards use serverSummary so they always show the correct total
-  // regardless of how many pages of transactions exist.
-  // ──────────────────────────────────────────────────────────────────────────
   const loadSalesReport = async (overrides = {}) => {
     setLoading(true);
-    // Clear stale summary immediately so old numbers don't flash
     setServerSummary(null);
     try {
       const type      = overrides.type      ?? reportType;
@@ -490,7 +523,6 @@ const POSSystem = () => {
       const startDate = overrides.startDate ?? reportStartDate;
       const endDate   = overrides.endDate   ?? reportEndDate;
 
-      // Build shared date param string
       let dateParams = '';
       if (type === 'daily') {
         dateParams = `start_date=${date}&end_date=${date}`;
@@ -504,7 +536,6 @@ const POSSystem = () => {
         return;
       }
 
-      // Fire both requests in parallel
       const [rowsRes, summaryRes] = await Promise.all([
         fetch(`${API_BASE}/sales?${dateParams}&per_page=9999`),
         fetch(`${API_BASE}/sales/summary?${dateParams}`),
@@ -522,7 +553,6 @@ const POSSystem = () => {
       }
 
       if (summaryJson.success) {
-        // Normalise to the shape ReportsInterface expects
         const s = summaryJson.data;
         setServerSummary({
           totalSales:          parseFloat(s.total_sales)          || 0,
@@ -542,18 +572,17 @@ const POSSystem = () => {
     setLoading(false);
   };
 
-  // Kept for backwards-compat — ReportsInterface receives this but no longer uses it
   const calculateSummary = () => null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 font-sans">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 font-sans flex flex-col">
       <Header />
 
-      <div className="max-w-7xl mx-auto px-4 py-4">
+      <div className="w-full max-w-7xl mx-auto px-3 sm:px-4 py-3 sm:py-4">
         <TabNavigation activeTab={activeTab} setActiveTab={setActiveTab} />
       </div>
 
-      <main className="max-w-7xl mx-auto px-4 pb-8" style={{ height: 'calc(100vh - 220px)' }}>
+      <main className="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-4 pb-8">
         {activeTab === 'sales' && (
           <SalesInterface
             barcodeInputRef={barcodeInputRef}
