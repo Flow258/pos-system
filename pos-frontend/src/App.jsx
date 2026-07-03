@@ -57,7 +57,7 @@ const POSSystem = () => {
     units: [{ unit_name: 'Piece', barcode: '', price: '', price_type: 'retail', conversion_factor: '1' }]
   });
 
-  // ── NEW: Prevent Tablet/Phone Screen from Sleeping ──
+  // ── Prevent Tablet/Phone Screen from Sleeping ──
   useEffect(() => {
     let wakeLock = null;
 
@@ -101,7 +101,7 @@ const POSSystem = () => {
     setTimeout(() => setNotification(null), 3000);
   };
 
-  // ── NEW: Audio Beeps for Cashier Feedback ──
+  // ── Audio Beeps for Cashier Feedback ──
   const playSuccessSound = () => {
     try {
       const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUrDk');
@@ -125,12 +125,7 @@ const POSSystem = () => {
       playErrorSound();
       return;
     }
-    const existingItem = cart.find(item => item.id === productUnit.id);
-    if (existingItem) {
-      updateQuantity(productUnit.id, existingItem.quantity + 1);
-    } else {
-      setCart(prev => [...prev, { ...productUnit, quantity: 1 }]);
-    }
+    addToCart(productUnit); // Using the fixed addToCart function
     showNotification(`✓ ${productUnit.product?.name || productUnit.name} added via AI Vision!`, 'success');
     playSuccessSound();
   };
@@ -266,21 +261,36 @@ const POSSystem = () => {
     if (barcodeInputRef.current) barcodeInputRef.current.focus();
   };
 
+  // ── FIXED: Cart Functions using prevCart to prevent state bugs ──
   const addToCart = (productUnit) => {
-    const existingItem = cart.find(item => item.id === productUnit.id);
-    if (existingItem) {
-      updateQuantity(productUnit.id, existingItem.quantity + 1);
-    } else {
-      setCart(prev => [...prev, { ...productUnit, quantity: 1 }]);
-    }
+    setCart(prevCart => {
+      const existingItem = prevCart.find(item => item.id === productUnit.id);
+      if (existingItem) {
+        return prevCart.map(item =>
+          item.id === productUnit.id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        );
+      } else {
+        return [...prevCart, { ...productUnit, quantity: 1 }];
+      }
+    });
   };
 
   const updateQuantity = (id, newQuantity) => {
-    if (newQuantity < 1) { removeFromCart(id); return; }
-    setCart(cart.map(item => item.id === id ? { ...item, quantity: newQuantity } : item));
+    setCart(prevCart => {
+      if (newQuantity < 1) {
+        return prevCart.filter(item => item.id !== id);
+      }
+      return prevCart.map(item =>
+        item.id === id ? { ...item, quantity: newQuantity } : item
+      );
+    });
   };
 
-  const removeFromCart = (id) => setCart(cart.filter(item => item.id !== id));
+  const removeFromCart = (id) => {
+    setCart(prevCart => prevCart.filter(item => item.id !== id));
+  };
 
   const calculateTotal = () => cart.reduce((sum, item) => sum + (parseFloat(item.price) * item.quantity), 0);
 
@@ -483,6 +493,29 @@ const POSSystem = () => {
     }
   };
 
+  // ── Bulk Import Products ──
+  const handleImportProducts = async (productsArray) => {
+    showNotification(`Importing ${productsArray.length} products...`, 'success');
+    let successCount = 0;
+    
+    for (const product of productsArray) {
+      try {
+        const response = await fetch(`${API_BASE}/products`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(product),
+        });
+        const data = await response.json();
+        if (data.success) successCount++;
+      } catch (error) {
+        console.error('Error importing product:', product.name, error);
+      }
+    }
+    
+    showNotification(`Successfully imported ${successCount} of ${productsArray.length} products!`, 'success');
+    loadProducts(); 
+  };
+
   const resetProductForm = () => setProductForm({
     name: '',
     description: '',
@@ -615,6 +648,7 @@ const POSSystem = () => {
             resetProductForm={resetProductForm}
             setEditingProduct={setEditingProduct}
             setShowProductModal={setShowProductModal}
+            onImportProducts={handleImportProducts}
           />
         )}
         {activeTab === 'customers' && (
@@ -646,6 +680,20 @@ const POSSystem = () => {
           />
         )}
       </main>
+
+      {/* ── NEW: Footer ── */}
+      <footer className="w-full max-w-7xl mx-auto px-4 py-6 text-center text-gray-500 border-t border-gray-200 mt-4">
+        <p className="text-sm font-medium text-gray-600 mb-1">Made by Alquizalas, Ashley Dave N.</p>
+        <div className="flex justify-center gap-4 text-xs">
+          <a href="https://ash-alquizalas.vercel.app/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 hover:underline transition-colors">
+            Portfolio
+          </a>
+          <span className="text-gray-300">|</span>
+          <a href="https://github.com/Flow258?tab=repositories" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 hover:underline transition-colors">
+            GitHub
+          </a>
+        </div>
+      </footer>
 
       {showVisionScanner && (
         <VisionScannerModal
