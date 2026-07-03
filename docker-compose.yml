@@ -67,7 +67,7 @@ services:
       - "5174:5173"
     networks:
       - pos_network
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    command: sh -c "npm install --legacy-peer-deps && npm run dev -- --host 0.0.0.0"
 
   nginx:
     image: nginx:alpine
