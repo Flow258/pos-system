@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { startTransition } from 'react';
 import { ShoppingCart, Package, Users, TrendingUp } from 'lucide-react';
 
 const TabNavigation = ({ activeTab, setActiveTab }) => {
@@ -14,7 +14,8 @@ const TabNavigation = ({ activeTab, setActiveTab }) => {
       {tabs.map((tab) => (
         <button
           key={tab.id}
-          onClick={() => setActiveTab(tab.id)}
+          // ── INP FIX: Wrap the state update in startTransition ──
+          onClick={() => startTransition(() => setActiveTab(tab.id))}
           className={`flex-1 py-2 sm:py-3 px-2 sm:px-4 rounded-lg font-medium flex items-center justify-center gap-1 sm:gap-2 transition-colors text-xs sm:text-sm ${
             activeTab === tab.id ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'
           }`}
