@@ -26,14 +26,14 @@ const SalesInterface = ({
 }) => {
   const [receipt, setReceipt] = useState(null);
 
-  // ── NEW: Auto-focus the barcode scanner ONLY when the Sales tab is first opened ──
+  // Auto-focus the barcode scanner ONLY when the Sales tab is first opened
   useEffect(() => {
     if (barcodeInputRef.current) {
       barcodeInputRef.current.focus();
     }
   }, []);
 
-  // ── NEW: Keyboard Shortcuts (F1=Cash, F2=GCash, F3=Utang) ──
+  // Keyboard Shortcuts (F1=Cash, F2=GCash, F3=Utang)
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.target.tagName === 'INPUT' && e.key !== 'Enter') return;
@@ -70,7 +70,7 @@ const SalesInterface = ({
     if (gcashPayment?.checkoutUrl) {
       const popup = window.open(gcashPayment.checkoutUrl, 'GCash Payment', 'width=500,height=750,scrollbars=yes');
       if (!popup) {
-        window.location.href = gcashPayment.checkoutUrl; // Fallback for mobile blockers
+        window.location.href = gcashPayment.checkoutUrl;
       }
     }
   };
@@ -118,14 +118,18 @@ const SalesInterface = ({
               </div>
               {cart.length > 0 && (
                 <div className="flex gap-2">
-                  {/* ── NEW: Void Last Item Button ── */}
                   <button 
+                    onMouseDown={(e) => e.preventDefault()} // Prevents stealing focus
                     onClick={() => removeFromCart(cart[cart.length - 1].id)} 
                     className="text-orange-600 hover:text-orange-700 text-xs sm:text-sm flex items-center gap-1 bg-orange-50 px-2 py-1 rounded active:scale-95"
                   >
                     <Undo2 className="w-4 h-4" /> Void Last
                   </button>
-                  <button onClick={() => setCart([])} className="text-red-500 hover:text-red-700 text-xs sm:text-sm flex items-center gap-1 active:scale-95">
+                  <button 
+                    onMouseDown={(e) => e.preventDefault()} // Prevents stealing focus
+                    onClick={() => setCart([])} 
+                    className="text-red-500 hover:text-red-700 text-xs sm:text-sm flex items-center gap-1 active:scale-95"
+                  >
                     <Trash2 className="w-4 h-4" /> Clear All
                   </button>
                 </div>
@@ -154,18 +158,30 @@ const SalesInterface = ({
                       </p>
                     </div>
                     <div className="flex items-center gap-1 sm:gap-2">
-                      <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="w-7 h-7 sm:w-8 sm:h-8 bg-gray-200 rounded hover:bg-gray-300 flex items-center justify-center active:scale-90">
+                      <button 
+                        onMouseDown={(e) => e.preventDefault()} // Prevents stealing focus
+                        onClick={() => updateQuantity(item.id, item.quantity - 1)} 
+                        className="w-7 h-7 sm:w-8 sm:h-8 bg-gray-200 rounded hover:bg-gray-300 flex items-center justify-center active:scale-90"
+                      >
                         <Minus className="w-4 h-4" />
                       </button>
                       <span className="w-8 sm:w-12 text-center font-semibold text-base sm:text-lg">{item.quantity}</span>
-                      <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="w-7 h-7 sm:w-8 sm:h-8 bg-gray-200 rounded hover:bg-gray-300 flex items-center justify-center active:scale-90">
+                      <button 
+                        onMouseDown={(e) => e.preventDefault()} // Prevents stealing focus
+                        onClick={() => updateQuantity(item.id, item.quantity + 1)} 
+                        className="w-7 h-7 sm:w-8 sm:h-8 bg-gray-200 rounded hover:bg-gray-300 flex items-center justify-center active:scale-90"
+                      >
                         <Plus className="w-4 h-4" />
                       </button>
                     </div>
                     <div className="w-16 sm:w-24 text-right">
                       <p className="font-semibold text-sm sm:text-lg">₱{(parseFloat(item.price) * item.quantity).toFixed(2)}</p>
                     </div>
-                    <button onClick={() => removeFromCart(item.id)} className="text-gray-400 hover:text-red-500 active:scale-90">
+                    <button 
+                      onMouseDown={(e) => e.preventDefault()} // Prevents stealing focus
+                      onClick={() => removeFromCart(item.id)} 
+                      className="text-gray-400 hover:text-red-500 active:scale-90"
+                    >
                       <X className="w-4 h-4 sm:w-5 sm:h-5" />
                     </button>
                   </div>
@@ -184,7 +200,12 @@ const SalesInterface = ({
 
           <div className="mb-3 sm:mb-4">
             <label className="text-xs sm:text-sm font-medium text-gray-700 mb-1 block">Customer (Optional)</label>
-            <select value={selectedCustomer || ''} onChange={(e) => setSelectedCustomer(e.target.value || null)} className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500 bg-white text-sm sm:text-base">
+            <select 
+              value={selectedCustomer || ''} 
+              onChange={(e) => setSelectedCustomer(e.target.value || null)} 
+              onBlur={(e) => barcodeInputRef.current?.focus()} // Return focus to scanner
+              className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500 bg-white text-sm sm:text-base"
+            >
               <option value="">Walk-in Customer</option>
               {customers.map(customer => (
                 <option key={customer.id} value={customer.id}>
@@ -197,15 +218,27 @@ const SalesInterface = ({
           <div className="mb-3 sm:mb-4">
             <label className="text-xs sm:text-sm font-medium text-gray-700 mb-2 block">Payment Method</label>
             <div className="grid grid-cols-3 gap-2">
-              <button onClick={() => setPaymentMethod('cash')} className={`py-2 sm:py-3 rounded-lg border-2 flex flex-col items-center gap-1 transition-all ${paymentMethod === 'cash' ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400'}`}>
+              <button 
+                onMouseDown={(e) => e.preventDefault()} // Prevents stealing focus
+                onClick={() => setPaymentMethod('cash')} 
+                className={`py-2 sm:py-3 rounded-lg border-2 flex flex-col items-center gap-1 transition-all ${paymentMethod === 'cash' ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400'}`}
+              >
                 <DollarSign className="w-4 h-4 sm:w-5 sm:h-5" />
                 <span className="text-xs font-medium">Cash</span>
               </button>
-              <button onClick={() => setPaymentMethod('gcash')} className={`py-2 sm:py-3 rounded-lg border-2 flex flex-col items-center gap-1 transition-all ${paymentMethod === 'gcash' ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400'}`}>
+              <button 
+                onMouseDown={(e) => e.preventDefault()} // Prevents stealing focus
+                onClick={() => setPaymentMethod('gcash')} 
+                className={`py-2 sm:py-3 rounded-lg border-2 flex flex-col items-center gap-1 transition-all ${paymentMethod === 'gcash' ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400'}`}
+              >
                 <Smartphone className="w-4 h-4 sm:w-5 sm:h-5" />
                 <span className="text-xs font-medium">GCash</span>
               </button>
-              <button onClick={() => setPaymentMethod('credit')} className={`py-2 sm:py-3 rounded-lg border-2 flex flex-col items-center gap-1 transition-all ${paymentMethod === 'credit' ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400'}`}>
+              <button 
+                onMouseDown={(e) => e.preventDefault()} // Prevents stealing focus
+                onClick={() => setPaymentMethod('credit')} 
+                className={`py-2 sm:py-3 rounded-lg border-2 flex flex-col items-center gap-1 transition-all ${paymentMethod === 'credit' ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400'}`}
+              >
                 <CreditCard className="w-4 h-4 sm:w-5 sm:h-5" />
                 <span className="text-xs font-medium">Utang</span>
               </button>
@@ -215,14 +248,37 @@ const SalesInterface = ({
           {paymentMethod !== 'credit' && paymentMethod !== 'gcash' && (
             <div className="mb-3 sm:mb-4">
               <label className="text-xs sm:text-sm font-medium text-gray-700 mb-1 block">Amount Paid</label>
-              <input type="number" inputMode="decimal" value={amountPaid} onChange={(e) => setAmountPaid(e.target.value)} placeholder="0.00" className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500 text-right text-base sm:text-lg mb-2" />
+              <input 
+                type="number" 
+                inputMode="decimal" 
+                value={amountPaid} 
+                onChange={(e) => setAmountPaid(e.target.value)} 
+                onBlur={(e) => barcodeInputRef.current?.focus()} // Return focus to scanner
+                placeholder="0.00" 
+                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500 text-right text-base sm:text-lg mb-2" 
+              />
               
-              {/* ── NEW: Quick Cash Buttons ── */}
               <div className="grid grid-cols-4 gap-2">
-                <button onClick={() => setAmountPaid(calculateTotal().toFixed(2))} className="py-2 bg-gray-100 hover:bg-gray-200 rounded text-xs font-bold active:scale-95">Exact</button>
-                <button onClick={() => setAmountPaid('100')} className="py-2 bg-gray-100 hover:bg-gray-200 rounded text-xs font-bold active:scale-95">₱100</button>
-                <button onClick={() => setAmountPaid('500')} className="py-2 bg-gray-100 hover:bg-gray-200 rounded text-xs font-bold active:scale-95">₱500</button>
-                <button onClick={() => setAmountPaid('1000')} className="py-2 bg-gray-100 hover:bg-gray-200 rounded text-xs font-bold active:scale-95">₱1000</button>
+                <button 
+                  onMouseDown={(e) => e.preventDefault()} // Prevents stealing focus
+                  onClick={() => setAmountPaid(calculateTotal().toFixed(2))} 
+                  className="py-2 bg-gray-100 hover:bg-gray-200 rounded text-xs font-bold active:scale-95"
+                >Exact</button>
+                <button 
+                  onMouseDown={(e) => e.preventDefault()} // Prevents stealing focus
+                  onClick={() => setAmountPaid('100')} 
+                  className="py-2 bg-gray-100 hover:bg-gray-200 rounded text-xs font-bold active:scale-95"
+                >₱100</button>
+                <button 
+                  onMouseDown={(e) => e.preventDefault()} // Prevents stealing focus
+                  onClick={() => setAmountPaid('500')} 
+                  className="py-2 bg-gray-100 hover:bg-gray-200 rounded text-xs font-bold active:scale-95"
+                >₱500</button>
+                <button 
+                  onMouseDown={(e) => e.preventDefault()} // Prevents stealing focus
+                  onClick={() => setAmountPaid('1000')} 
+                  className="py-2 bg-gray-100 hover:bg-gray-200 rounded text-xs font-bold active:scale-95"
+                >₱1000</button>
               </div>
             </div>
           )}
@@ -271,9 +327,9 @@ const SalesInterface = ({
             </div>
           </div>
 
-          {/* ── NEW: Sticky Checkout Button Container ── */}
           <div className="sticky bottom-0 bg-white pt-2">
             <button
+              onMouseDown={(e) => e.preventDefault()} // Prevents stealing focus
               onClick={handleCompleteSale}
               disabled={cart.length === 0}
               className={`w-full py-3 sm:py-4 rounded-lg font-semibold text-white text-base sm:text-lg transition-colors ${cart.length === 0 ? 'bg-gray-300 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 active:scale-95'}`}
@@ -284,7 +340,7 @@ const SalesInterface = ({
         </div>
       </div>
 
-      {/* ── GCash Payment Processing Overlay ── */}
+      {/* GCash Payment Processing Overlay */}
       {gcashPayment && gcashPayment.status === 'pending' && (
         <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-[70] p-0 sm:p-4">
           <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-2xl w-full sm:max-w-md p-4 sm:p-6 text-center">
@@ -309,6 +365,7 @@ const SalesInterface = ({
 
             <div className="flex flex-col sm:flex-row gap-3">
               <button
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={handleReopenGcashPopup}
                 className="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 font-semibold flex items-center justify-center gap-2 text-sm active:scale-95"
               >
@@ -316,6 +373,7 @@ const SalesInterface = ({
                 Reopen PayMongo
               </button>
               <button
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={handleCancelGcash}
                 className="px-6 py-3 border rounded-lg hover:bg-gray-50 text-gray-700 text-sm"
               >
