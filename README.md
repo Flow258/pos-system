@@ -110,7 +110,7 @@ The application provides inventory management, sales processing, customer tracki
 
 ## 📸 Screenshots
 
-Add screenshots to make your repository more professional.
+Soon
 
 ### Dashboard
 
