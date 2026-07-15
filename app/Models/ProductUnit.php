@@ -19,6 +19,7 @@ class ProductUnit extends Model
         'unit_name',
         'barcode',
         'price',
+        'cost_price',
         'price_type',
         'conversion_factor',
     ];
@@ -30,6 +31,7 @@ class ProductUnit extends Model
      */
     protected $casts = [
         'price' => 'decimal:2',
+        'cost_price' => 'decimal:2',
         'conversion_factor' => 'integer',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
@@ -90,5 +92,20 @@ class ProductUnit extends Model
     public function calculateBaseUnits($quantity)
     {
         return $quantity * $this->conversion_factor;
+    }
+
+    /**
+     * Profit margin percentage for this unit at its current price/cost.
+     * Returns 0 instead of dividing by zero if price is 0.
+     *
+     * @return float
+     */
+    public function getMarginPercentAttribute()
+    {
+        if ((float) $this->price <= 0) {
+            return 0;
+        }
+
+        return round((((float) $this->price - (float) $this->cost_price) / (float) $this->price) * 100, 2);
     }
 }
