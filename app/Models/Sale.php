@@ -106,16 +106,42 @@ class Sale extends Model
     }
 
     /**
-     * Calculate profit for this sale.
-     * 
-     * Note: This requires cost price to be tracked in the system.
-     * Placeholder for future enhancement.
+     * Calculate profit for this sale by summing each sale item's profit.
+     * Excludes credit-repayment rows (payment_method = 'payment'), which
+     * have no sale items and represent money collected, not a sale.
      *
      * @return float
      */
     public function calculateProfit()
     {
-        // TODO: Implement when cost tracking is added
-        return 0;
+        if ($this->payment_method === 'payment') {
+            return 0;
+        }
+
+        return (float) $this->saleItems->sum(fn ($item) => $item->calculateProfit());
+    }
+
+    /**
+     * Total cost of goods sold for this sale (sum of cost_price * quantity).
+     *
+     * @return float
+     */
+    public function getTotalCostAttribute()
+    {
+        if ($this->payment_method === 'payment') {
+            return 0;
+        }
+
+        return (float) $this->saleItems->sum(fn ($item) => $item->quantity * (float) $item->cost_price);
+    }
+
+    /**
+     * Net profit for this sale (revenue minus cost of goods sold).
+     *
+     * @return float
+     */
+    public function getNetProfitAttribute()
+    {
+        return $this->calculateProfit();
     }
 }
