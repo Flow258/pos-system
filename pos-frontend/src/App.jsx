@@ -57,7 +57,7 @@ const POSSystem = () => {
     category: '',
     stock_quantity: '',
     low_stock_threshold: '10',
-    units: [{ unit_name: 'Piece', barcode: '', price: '', price_type: 'retail', conversion_factor: '1' }]
+    units: [{ unit_name: 'Piece', barcode: '', price: '', cost_price: '', price_type: 'retail', conversion_factor: '1' }]
   });
 
   // ── Prevent Tablet/Phone Screen from Sleeping ──
@@ -466,7 +466,7 @@ const POSSystem = () => {
     }
   };
 
-  const addProductUnit = () => setProductForm({ ...productForm, units: [...productForm.units, { unit_name: '', barcode: '', price: '', price_type: 'wholesale', conversion_factor: '' }] });
+  const addProductUnit = () => setProductForm({ ...productForm, units: [...productForm.units, { unit_name: '', barcode: '', price: '', cost_price: '', price_type: 'wholesale', conversion_factor: '' }] });
 
   const removeProductUnit = (index) => setProductForm({ ...productForm, units: productForm.units.filter((_, i) => i !== index) });
 
@@ -536,7 +536,7 @@ const POSSystem = () => {
     category: '',
     stock_quantity: '',
     low_stock_threshold: '10',
-    units: [{ unit_name: 'Piece', barcode: '', price: '', price_type: 'retail', conversion_factor: '1' }]
+    units: [{ unit_name: 'Piece', barcode: '', price: '', cost_price: '', price_type: 'retail', conversion_factor: '1' }]
   });
 
   const editProduct = (product) => {
@@ -553,10 +553,11 @@ const POSSystem = () => {
             unit_name:         u.unit_name,
             barcode:           u.barcode,
             price:             u.price.toString(),
+            cost_price:        (u.cost_price ?? 0).toString(),
             price_type:        u.price_type,
             conversion_factor: u.conversion_factor.toString(),
           }))
-        : [{ unit_name: 'Piece', barcode: '', price: '', price_type: 'retail', conversion_factor: '1' }]
+        : [{ unit_name: 'Piece', barcode: '', price: '', cost_price: '', price_type: 'retail', conversion_factor: '1' }]
     });
     setShowProductModal(true);
   };
@@ -610,6 +611,9 @@ const POSSystem = () => {
           totalTransactions:   parseInt(s.sales_transactions)     || 0,
           paymentTransactions: parseInt(s.payment_transactions)   || 0,
           averageTransaction:  parseFloat(s.average_transaction)  || 0,
+          totalCost:           parseFloat(s.total_cost)           || 0,
+          netProfit:           parseFloat(s.net_profit)           || 0,
+          profitMargin:        parseFloat(s.profit_margin)        || 0,
         });
       }
 
