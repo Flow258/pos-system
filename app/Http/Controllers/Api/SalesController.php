@@ -148,12 +148,19 @@ class SalesController extends Controller
                     throw new \Exception("Insufficient stock for: {$productUnit->product->name}");
                 }
 
+                // Snapshot cost_price at time of sale so edits to the product's
+                // cost later don't rewrite the profit on past transactions.
+                $costPrice = (float) $productUnit->cost_price;
+                $profit    = ((float) $itemData['unit_price'] - $costPrice) * $itemData['quantity'];
+
                 SaleItem::create([
                     'sale_id'         => $sale->id,
                     'product_unit_id' => $productUnit->id,
                     'quantity'        => $itemData['quantity'],
                     'unit_price'      => $itemData['unit_price'],
+                    'cost_price'      => $costPrice,
                     'subtotal'        => $itemData['subtotal'],
+                    'profit'          => $profit,
                 ]);
 
                 $productUnit->product->stock_quantity -= $baseUnitsToDeduct;
@@ -357,7 +364,8 @@ class SalesController extends Controller
             // Payment rows have payment_method = 'payment' and negative total_amount.
             // We use ABS() so arithmetic is correct regardless of how old rows
             // were stored (some may be positive, some negative).
-            $salesRows    = (clone $query)->where('payment_method', '!=', 'payment')->get();
+            // saleItems is eager-loaded so cost/profit can be summed without N+1 queries.
+            $salesRows    = (clone $query)->with('saleItems')->where('payment_method', '!=', 'payment')->get();
             $paymentRows  = (clone $query)->where('payment_method', '=', 'payment')->get();
 
             $cashSales   = $salesRows->where('payment_method', 'cash')
@@ -372,6 +380,17 @@ class SalesController extends Controller
             $salesTransactions  = $salesRows->count();
             $paymentTransactions = $paymentRows->count();
 
+            // ── Net profit ──────────────────────────────────────────────────
+            // Sum of (unit_price - cost_price) * quantity across every sale
+            // item in the period. Items sold before cost tracking was added
+            // have cost_price = 0, so they contribute their full revenue as
+            // "profit" until backfilled — same caveat as the original plan.
+            $totalCost = $salesRows->sum(
+                fn($s) => $s->saleItems->sum(fn($item) => $item->quantity * (float) $item->cost_price)
+            );
+            $netProfit    = $totalSales - $totalCost;
+            $profitMargin = $totalSales > 0 ? round(($netProfit / $totalSales) * 100, 2) : 0;
+
             return response()->json([
                 'success' => true,
                 'data'    => [
@@ -381,6 +400,9 @@ class SalesController extends Controller
                     'gcash_sales'          => round($gcashSales, 2),
                     'credit_sales'         => round($creditSales, 2),
                     'total_payments'       => round($totalPayments, 2),
+                    'total_cost'           => round($totalCost, 2),
+                    'net_profit'           => round($netProfit, 2),
+                    'profit_margin'        => $profitMargin,
                     'sales_transactions'   => $salesTransactions,
                     'payment_transactions' => $paymentTransactions,
                     'average_transaction'  => $salesTransactions > 0
