@@ -19,7 +19,9 @@ class SaleItem extends Model
         'product_unit_id',
         'quantity',
         'unit_price',
+        'cost_price',
         'subtotal',
+        'profit',
     ];
 
     /**
@@ -30,7 +32,9 @@ class SaleItem extends Model
     protected $casts = [
         'quantity' => 'integer',
         'unit_price' => 'decimal:2',
+        'cost_price' => 'decimal:2',
         'subtotal' => 'decimal:2',
+        'profit' => 'decimal:2',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -69,6 +73,17 @@ class SaleItem extends Model
     public function calculateSubtotal()
     {
         return $this->quantity * $this->unit_price;
+    }
+
+    /**
+     * Calculate profit for this line item: (unit_price - cost_price) * quantity.
+     * cost_price is the snapshot taken at time of sale, not the live product cost.
+     *
+     * @return float
+     */
+    public function calculateProfit()
+    {
+        return $this->quantity * ((float) $this->unit_price - (float) $this->cost_price);
     }
 
     /**
