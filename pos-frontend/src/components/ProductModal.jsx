@@ -1,7 +1,7 @@
 import React from 'react';
-import { X, Plus, Trash2, Save } from 'lucide-react';
+import { X, Plus, Trash2, Save, Camera } from 'lucide-react';
 
-const ProductModal = ({ editingProduct, setEditingProduct, setShowProductModal, productForm, setProductForm, saveProduct, resetProductForm, addProductUnit, removeProductUnit, updateProductUnit }) => (
+const ProductModal = ({ editingProduct, setEditingProduct, setShowProductModal, productForm, setProductForm, saveProduct, resetProductForm, addProductUnit, removeProductUnit, updateProductUnit, onScanBarcode }) => (
   <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
     <div className="bg-white rounded-t-2xl sm:rounded-lg shadow-xl w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] flex flex-col">
       
@@ -66,7 +66,20 @@ const ProductModal = ({ editingProduct, setEditingProduct, setShowProductModal, 
                 {/* Adjusted grid for better mobile layout */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                   <input type="text" placeholder="Unit Name (e.g., Piece)" value={unit.unit_name} onChange={e => updateProductUnit(index, 'unit_name', e.target.value)} className="px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500 text-sm" />
-                  <input type="text" inputMode="numeric" placeholder="Barcode *" value={unit.barcode} onChange={e => updateProductUnit(index, 'barcode', e.target.value)} className="px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500 text-sm" />
+                  <div className="flex gap-2">
+                    <input type="text" inputMode="numeric" placeholder="Barcode *" value={unit.barcode} onChange={e => updateProductUnit(index, 'barcode', e.target.value)} className="flex-1 min-w-0 px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500 text-sm" />
+                    {onScanBarcode && (
+                      <button
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => onScanBarcode(index)}
+                        className="shrink-0 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 active:scale-95 transition"
+                        title="Scan barcode using camera"
+                      >
+                        <Camera className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
                   <input type="number" inputMode="decimal" placeholder="Price *" value={unit.price} onChange={e => updateProductUnit(index, 'price', e.target.value)} className="px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500 text-sm" />
                   <select value={unit.price_type} onChange={e => updateProductUnit(index, 'price_type', e.target.value)} className="px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500 bg-white text-sm">
                     <option value="retail">Retail</option>
