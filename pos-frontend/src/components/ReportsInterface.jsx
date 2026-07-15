@@ -179,7 +179,7 @@ const fmt = (n) => '₱' + Number(n || 0).toLocaleString('en-PH', { minimumFract
 
 const buildSummary = (salesData) => {
   if (!salesData?.data?.length) return null;
-  let cashSales = 0, gcashSales = 0, creditSales = 0, paymentTotal = 0, salesCount = 0, paymentCount = 0;
+  let cashSales = 0, gcashSales = 0, creditSales = 0, paymentTotal = 0, salesCount = 0, paymentCount = 0, totalCost = 0;
   for (const t of salesData.data) {
     const amount = Math.abs(parseFloat(t.total_amount) || 0);
     const method = (t.payment_method || '').toLowerCase();
@@ -190,10 +190,21 @@ const buildSummary = (salesData) => {
       else if (method === 'gcash') gcashSales += amount;
       else if (method === 'credit') creditSales += amount;
       else cashSales += amount;
+      // Cost of goods sold for this sale — sums each line item's snapshot cost_price.
+      // Items sold before cost tracking was added default to cost_price 0.
+      (t.sale_items || []).forEach(item => {
+        totalCost += (parseFloat(item.quantity) || 0) * (parseFloat(item.cost_price) || 0);
+      });
     }
   }
   const totalSales = cashSales + gcashSales + creditSales;
-  return { totalSales, cashSales, gcashSales, creditSales, paymentTotal, totalTransactions: salesCount, paymentTransactions: paymentCount, averageTransaction: salesCount > 0 ? totalSales / salesCount : 0 };
+  const netProfit = totalSales - totalCost;
+  return {
+    totalSales, cashSales, gcashSales, creditSales, paymentTotal,
+    totalTransactions: salesCount, paymentTransactions: paymentCount,
+    averageTransaction: salesCount > 0 ? totalSales / salesCount : 0,
+    totalCost, netProfit, profitMargin: totalSales > 0 ? (netProfit / totalSales) * 100 : 0,
+  };
 };
 
 const ReportsInterface = ({
@@ -305,6 +316,7 @@ const ReportsInterface = ({
     if (summary) {
       summaryRows.push(''); summaryRows.push(`"--- SUMMARY ---"`);
       summaryRows.push(`"Total Sales","${summary.totalSales.toFixed(2)}"`); summaryRows.push(`"Total Transactions","${summary.totalTransactions}"`);
+      summaryRows.push(`"Net Profit","${(summary.netProfit || 0).toFixed(2)}"`); summaryRows.push(`"Profit Margin","${(summary.profitMargin || 0).toFixed(1)}%"`);
       summaryRows.push(`"Average Transaction","${summary.averageTransaction.toFixed(2)}"`); summaryRows.push(`"Cash Sales","${summary.cashSales.toFixed(2)}"`);
       summaryRows.push(`"GCash Sales","${summary.gcashSales.toFixed(2)}"`); summaryRows.push(`"Credit (Utang) Sales","${summary.creditSales.toFixed(2)}"`);
       summaryRows.push(`"Payments Received","${summary.paymentTotal.toFixed(2)}"`);
@@ -349,6 +361,8 @@ const ReportsInterface = ({
           const summaryRows = [
             ['Total Sales', summary.totalSales],
             ['Total Transactions', summary.totalTransactions],
+            ['Net Profit', summary.netProfit || 0],
+            ['Profit Margin', `${(summary.profitMargin || 0).toFixed(1)}%`],
             ['Average Transaction', summary.averageTransaction],
             ['Cash Sales', summary.cashSales],
             ['GCash Sales', summary.gcashSales],
@@ -487,6 +501,8 @@ const ReportsInterface = ({
             body: [
               ['Total Sales', fmt(summary.totalSales)],
               ['Total Transactions', String(summary.totalTransactions)],
+              ['Net Profit', fmt(summary.netProfit || 0)],
+              ['Profit Margin', `${(summary.profitMargin || 0).toFixed(1)}%`],
               ['Average Transaction', fmt(summary.averageTransaction)],
               ['Cash Sales', fmt(summary.cashSales)],
               ['GCash Sales', fmt(summary.gcashSales)],
@@ -587,6 +603,7 @@ const ReportsInterface = ({
         <table class="kv">
           <tr><td>Total Sales</td><td class="right bold">${fmt(summary.totalSales)}</td></tr>
           <tr><td>Total Transactions</td><td class="right">${summary.totalTransactions}</td></tr>
+          <tr><td>Net Profit</td><td class="right">${fmt(summary.netProfit || 0)} (${(summary.profitMargin || 0).toFixed(1)}%)</td></tr>
           <tr><td>Average Transaction</td><td class="right">${fmt(summary.averageTransaction)}</td></tr>
           <tr><td>Cash Sales</td><td class="right">${fmt(summary.cashSales)}</td></tr>
           <tr><td>GCash Sales</td><td class="right">${fmt(summary.gcashSales)}</td></tr>
@@ -770,9 +787,10 @@ const ReportsInterface = ({
               <TrendingUp className="w-3.5 h-3.5 flex-shrink-0" /> Totals cover all {pagination.total} transactions across {pagination.lastPage} pages.
             </div>
           )}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4">
             {[
               { label: 'Total Sales', value: fmt(summary.totalSales), sub: `${summary.totalTransactions} transaction(s)`, icon: DollarSign, bg: 'bg-green-100', iconCls: 'text-green-600' },
+              { label: 'Net Profit', value: fmt(summary.netProfit), sub: `${(summary.profitMargin || 0).toFixed(1)}% margin`, icon: (summary.netProfit || 0) >= 0 ? TrendingUp : TrendingDown, bg: (summary.netProfit || 0) >= 0 ? 'bg-emerald-100' : 'bg-red-100', iconCls: (summary.netProfit || 0) >= 0 ? 'text-emerald-600' : 'text-red-600', valCls: (summary.netProfit || 0) >= 0 ? 'text-emerald-600' : 'text-red-600' },
               { label: 'Avg. Transaction', value: fmt(summary.averageTransaction), sub: 'per sale', icon: TrendingUp, bg: 'bg-purple-100', iconCls: 'text-purple-600' },
               { label: 'Payments Received', value: fmt(summary.paymentTotal), sub: `${summary.paymentTransactions} payment(s)`, icon: Wallet, bg: 'bg-teal-100', iconCls: 'text-teal-600', valCls: 'text-teal-600' },
               { label: 'Credit Sales', value: fmt(summary.creditSales), sub: summary.totalSales > 0 ? `${((summary.creditSales / summary.totalSales) * 100).toFixed(1)}% of total` : '0% of total', icon: CreditCard, bg: 'bg-orange-100', iconCls: 'text-orange-600', valCls: 'text-orange-600' },
@@ -915,7 +933,7 @@ const ReportsInterface = ({
       <div ref={printRef} style={{ display: 'none' }}>
         {summary && (
           <>
-            <table><tbody><tr><td>Total Sales</td><td className="right bold">{fmt(summary.totalSales)}</td></tr><tr><td>Transactions</td><td className="right">{summary.totalTransactions}</td></tr><tr><td>Avg. Transaction</td><td className="right">{fmt(summary.averageTransaction)}</td></tr></tbody></table>
+            <table><tbody><tr><td>Total Sales</td><td className="right bold">{fmt(summary.totalSales)}</td></tr><tr><td>Transactions</td><td className="right">{summary.totalTransactions}</td></tr><tr><td>Net Profit</td><td className="right">{fmt(summary.netProfit || 0)} ({(summary.profitMargin || 0).toFixed(1)}%)</td></tr><tr><td>Avg. Transaction</td><td className="right">{fmt(summary.averageTransaction)}</td></tr></tbody></table>
             <hr /><table><tbody><tr><td>Cash</td><td className="right">{fmt(summary.cashSales)}</td></tr><tr><td>GCash</td><td className="right">{fmt(summary.gcashSales)}</td></tr><tr><td>Credit (Utang)</td><td className="right">{fmt(summary.creditSales)}</td></tr><tr><td>Payments Received</td><td className="right">{fmt(summary.paymentTotal)}</td></tr></tbody></table>
           </>
         )}
