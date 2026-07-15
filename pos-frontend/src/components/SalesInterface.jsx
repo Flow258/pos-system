@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShoppingCart, Barcode, Trash2, Minus, Plus, X, DollarSign, CreditCard, Smartphone, Loader, ExternalLink, Undo2 } from 'lucide-react';
+import { ShoppingCart, Barcode, Trash2, Minus, Plus, X, DollarSign, CreditCard, Smartphone, Loader, ExternalLink, Undo2, Camera } from 'lucide-react';
 import Receipt from './Receipt';
 
 const SalesInterface = ({
@@ -21,6 +21,7 @@ const SalesInterface = ({
   calculateTotal,
   calculateChange,
   completeSale,
+  setShowBarcodeScanner,
   gcashPayment,
   setGcashPayment
 }) => {
@@ -92,7 +93,7 @@ const SalesInterface = ({
               <Barcode className="w-5 h-5 text-blue-600" />
               <h3 className="font-semibold text-sm sm:text-base">Scan Product</h3>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <input
                 ref={barcodeInputRef}
                 type="text"
@@ -107,6 +108,17 @@ const SalesInterface = ({
                 placeholder="Scan barcode or type and press Enter..."
                 className="flex-1 px-3 py-2 sm:px-4 sm:py-3 border-2 border-blue-300 rounded-lg focus:border-blue-500 focus:outline-none text-base sm:text-lg"
               />
+              {setShowBarcodeScanner && (
+                <button
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => setShowBarcodeScanner(true)}
+                  className="shrink-0 px-3 sm:px-4 py-2 sm:py-3 bg-blue-600 text-white rounded-lg font-medium flex items-center justify-center gap-2 hover:bg-blue-700 active:scale-95 transition text-sm sm:text-base"
+                  title="Scan barcode using camera"
+                >
+                  <Camera className="w-5 h-5" />
+                  <span>Scan barcode using camera</span>
+                </button>
+              )}
             </div>
           </div>
 
