@@ -56,6 +56,11 @@ Route::prefix('sales')->group(function () {
     
     Route::get('/daily-summary', [SalesController::class, 'dailySummary'])
         ->name('api.sales.daily-summary');
+
+    // Must be registered before /{id} — otherwise "summary" is captured as
+    // the {id} parameter and this route is never reached.
+    Route::get('/summary', [SalesController::class, 'summary'])
+        ->name('api.sales.summary');
     
     Route::get('/{id}', [SalesController::class, 'show'])
         ->name('api.sales.show');
