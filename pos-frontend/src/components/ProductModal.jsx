@@ -81,12 +81,19 @@ const ProductModal = ({ editingProduct, setEditingProduct, setShowProductModal, 
                     )}
                   </div>
                   <input type="number" inputMode="decimal" placeholder="Price *" value={unit.price} onChange={e => updateProductUnit(index, 'price', e.target.value)} className="px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500 text-sm" />
+                  <input type="number" inputMode="decimal" placeholder="Cost Price" title="What you pay your supplier for this unit — used for net profit reports" value={unit.cost_price} onChange={e => updateProductUnit(index, 'cost_price', e.target.value)} className="px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500 text-sm" />
                   <select value={unit.price_type} onChange={e => updateProductUnit(index, 'price_type', e.target.value)} className="px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500 bg-white text-sm">
                     <option value="retail">Retail</option>
                     <option value="wholesale">Wholesale</option>
                   </select>
                   <input type="number" inputMode="decimal" placeholder="Conversion Factor" value={unit.conversion_factor} onChange={e => updateProductUnit(index, 'conversion_factor', e.target.value)} className="px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500 text-sm" disabled={index === 0} />
                 </div>
+                {unit.price > 0 && (
+                  <p className="text-xs text-gray-500 mt-2">
+                    Margin: {(((parseFloat(unit.price || 0) - parseFloat(unit.cost_price || 0)) / parseFloat(unit.price)) * 100).toFixed(1)}%
+                    {' '}(₱{(parseFloat(unit.price || 0) - parseFloat(unit.cost_price || 0)).toFixed(2)} profit per {unit.unit_name || 'unit'})
+                  </p>
+                )}
               </div>
             ))}
           </div>
