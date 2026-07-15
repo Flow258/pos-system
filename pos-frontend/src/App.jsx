@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ShoppingCart, Package, Users, TrendingUp } from 'lucide-react';
 import VisionScannerModal from './components/VisionScannerModal';
+import BarcodeScannerModal from './components/BarcodeScannerModal';
 import SalesInterface from './components/SalesInterface';
 import InventoryInterface from './components/InventoryInterface';
 import CustomersInterface from './components/CustomersInterface';
@@ -18,6 +19,8 @@ const API_BASE = 'api';
 
 const POSSystem = () => {
   const [showVisionScanner, setShowVisionScanner] = useState(false);
+  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
+  const [scanningUnitIndex, setScanningUnitIndex] = useState(null); // set when scanning to fill a ProductModal barcode field
   const [activeTab, setActiveTab] = useState('sales');
   const [barcodeInput, setBarcodeInput] = useState('');
   const [cart, setCart] = useState([]);
@@ -259,6 +262,17 @@ const POSSystem = () => {
     }
     setBarcodeInput('');
     if (barcodeInputRef.current) barcodeInputRef.current.focus();
+  };
+
+  // Called when the camera scanner decodes a barcode/QR code.
+  // If a product-unit index is set, fill that ProductModal barcode field instead of scanning a sale.
+  const handleCameraBarcodeDetected = (code) => {
+    if (scanningUnitIndex !== null) {
+      updateProductUnit(scanningUnitIndex, 'barcode', code);
+      setScanningUnitIndex(null);
+    } else {
+      handleBarcodeScan(code);
+    }
   };
 
   // ── FIXED: Cart Functions using prevCart to prevent state bugs ──
@@ -637,6 +651,7 @@ const POSSystem = () => {
             calculateChange={calculateChange}
             completeSale={completeSale}
             setShowVisionScanner={setShowVisionScanner}
+            setShowBarcodeScanner={setShowBarcodeScanner}
             gcashPayment={gcashPayment}
             setGcashPayment={setGcashPayment}
           />
@@ -703,6 +718,17 @@ const POSSystem = () => {
           API_BASE={API_BASE}
         />
       )}
+      {showBarcodeScanner && (
+        <BarcodeScannerModal
+          isOpen={showBarcodeScanner}
+          onClose={() => { setShowBarcodeScanner(false); setScanningUnitIndex(null); }}
+          onDetected={handleCameraBarcodeDetected}
+          title={scanningUnitIndex !== null ? 'Scan Barcode for Product' : 'Scan Barcode'}
+          subtitle={scanningUnitIndex !== null
+            ? 'Point the camera at the barcode to fill this unit\'s barcode field'
+            : 'Point the camera at a product barcode or QR code'}
+        />
+      )}
       {showProductModal && (
         <ProductModal
           editingProduct={editingProduct}
@@ -715,6 +741,7 @@ const POSSystem = () => {
           addProductUnit={addProductUnit}
           removeProductUnit={removeProductUnit}
           updateProductUnit={updateProductUnit}
+          onScanBarcode={(index) => { setScanningUnitIndex(index); setShowBarcodeScanner(true); }}
         />
       )}
       {showCustomerModal && (
