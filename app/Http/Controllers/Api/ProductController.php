@@ -77,6 +77,7 @@ class ProductController extends Controller
                 'units.*.unit_name' => 'required|string|max:50',
                 'units.*.barcode' => 'required|string|max:100|unique:product_units,barcode',
                 'units.*.price' => 'required|numeric|min:0',
+                'units.*.cost_price' => 'nullable|numeric|min:0',
                 'units.*.price_type' => 'required|in:retail,wholesale',
                 'units.*.conversion_factor' => 'required|integer|min:1',
             ]);
@@ -99,6 +100,7 @@ class ProductController extends Controller
                     'unit_name' => $unitData['unit_name'],
                     'barcode' => $unitData['barcode'],
                     'price' => $unitData['price'],
+                    'cost_price' => $unitData['cost_price'] ?? 0,
                     'price_type' => $unitData['price_type'],
                     'conversion_factor' => $unitData['conversion_factor'],
                 ]);
@@ -157,6 +159,7 @@ class ProductController extends Controller
                 'units.*.unit_name' => 'required|string|max:50',
                 'units.*.barcode' => 'required|string|max:100',
                 'units.*.price' => 'required|numeric|min:0',
+                'units.*.cost_price' => 'nullable|numeric|min:0',
                 'units.*.price_type' => 'required|in:retail,wholesale',
                 'units.*.conversion_factor' => 'required|integer|min:1',
             ]);
@@ -186,6 +189,7 @@ class ProductController extends Controller
                             'unit_name' => $unitData['unit_name'],
                             'barcode' => $unitData['barcode'],
                             'price' => $unitData['price'],
+                            'cost_price' => $unitData['cost_price'] ?? 0,
                             'price_type' => $unitData['price_type'],
                             'conversion_factor' => $unitData['conversion_factor'],
                         ]);
@@ -198,6 +202,7 @@ class ProductController extends Controller
                         'unit_name' => $unitData['unit_name'],
                         'barcode' => $unitData['barcode'],
                         'price' => $unitData['price'],
+                        'cost_price' => $unitData['cost_price'] ?? 0,
                         'price_type' => $unitData['price_type'],
                         'conversion_factor' => $unitData['conversion_factor'],
                     ]);
