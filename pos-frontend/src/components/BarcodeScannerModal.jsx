@@ -23,6 +23,28 @@ const BarcodeScannerModal = ({
   const rawId = useId().replace(/[:]/g, '');
   const readerId = `barcode-reader-${rawId}`;
 
+  // navigator.mediaDevices (live camera streaming) only exists on secure
+  // contexts (HTTPS or localhost) — this is a browser-enforced restriction,
+  // not something the library or app code can opt out of. On plain HTTP
+  // over a LAN IP, skip straight to "take a photo" mode instead of trying
+  // (and failing) live streaming first.
+  const canUseLiveCamera = window.isSecureContext !== false
+    && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+
+  // If we're running inside the OMV Controller Android app's WebView, it
+  // exposes window.PosNativeBridge — a real native camera scan, unaffected
+  // by any browser secure-context restriction. Always preferred when present.
+  const hasNativeScanner = typeof window.PosNativeBridge !== 'undefined'
+    && typeof window.PosNativeBridge.scanBarcode === 'function';
+
+  const fileScannerRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const [mode, setMode] = useState(
+    hasNativeScanner ? 'native' : (canUseLiveCamera ? 'live' : 'photo')
+  );
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [nativeBusy, setNativeBusy] = useState(false);
+
   const scannerRef = useRef(null);
   const lastCodeRef = useRef({ text: null, time: 0 });
   const mountedRef = useRef(true);
@@ -110,6 +132,52 @@ const BarcodeScannerModal = ({
     }
   }, []);
 
+  // ---- Shared "code found" handler, used by both live scan and photo mode ----
+  const handleDetected = useCallback((decodedText, formatName) => {
+    const now = Date.now();
+    if (decodedText === lastCodeRef.current.text && now - lastCodeRef.current.time < 2000) return;
+    lastCodeRef.current = { text: decodedText, time: now };
+    beep();
+    setLastResult({ text: decodedText, format: formatName });
+    onDetected(decodedText, formatName);
+    if (!continuous) {
+      stopScanner();
+      onClose();
+    }
+  }, [beep, continuous, onDetected, onClose, stopScanner]);
+
+  // ---- Photo mode: decode a barcode from a still image instead of live video ----
+  // Uses <input type="file" capture="environment">, which opens the native
+  // camera app rather than requesting a MediaStream. That path isn't gated by
+  // secure-context rules, so it works over plain HTTP / LAN IPs.
+  const handlePhotoFile = useCallback(async (file) => {
+    if (!file) return;
+    setPhotoBusy(true);
+    setStatus('starting');
+    setErrorMsg('');
+    try {
+      if (!fileScannerRef.current) {
+        fileScannerRef.current = new Html5Qrcode(readerId, {
+          formatsToSupport: ALL_FORMATS,
+          useBarCodeDetectorIfSupported: true,
+          verbose: false,
+        });
+      }
+      const result = await fileScannerRef.current.scanFileV2(file, true);
+      if (!mountedRef.current) return;
+      setStatus('scanning');
+      handleDetected(result.decodedText, result?.result?.format?.formatName);
+    } catch (error) {
+      if (!mountedRef.current) return;
+      console.error('Photo decode error:', error);
+      setStatus('error');
+      setErrorMsg('No barcode found in that photo. Try again with better lighting or a closer shot.');
+    } finally {
+      if (mountedRef.current) setPhotoBusy(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }, [readerId, handleDetected]);
+
   // ---- Clean start function ----
   const startScanner = useCallback(async (config) => {
     const scanner = scannerRef.current;
@@ -124,21 +192,44 @@ const BarcodeScannerModal = ({
       { fps: 10, qrbox: qrboxFunction, aspectRatio: 1.7777, disableFlip: false },
       (decodedText, result) => {
         if (!mountedRef.current) return;
-        const now = Date.now();
-        if (decodedText === lastCodeRef.current.text && now - lastCodeRef.current.time < 2000) return;
-        lastCodeRef.current = { text: decodedText, time: now };
-        const formatName = result?.result?.format?.formatName;
-        beep();
-        setLastResult({ text: decodedText, format: formatName });
-        onDetected(decodedText, formatName);
-        if (!continuous) {
-          stopScanner();
-          onClose();
-        }
+        handleDetected(decodedText, result?.result?.format?.formatName);
       },
       () => {} // ignore per-frame errors
     );
-  }, [stopScanner, beep, continuous, onDetected, onClose]);
+  }, [stopScanner, handleDetected]);
+
+  // ---- Native mode: hand off to the Android app's real camera, bypassing
+  // the browser entirely. WebActivity.kt calls window.__nativeBarcodeResult
+  // or window.__nativeBarcodeCancelled once the user finishes.
+  useEffect(() => {
+    if (!isOpen || mode !== 'native') return;
+
+    setNativeBusy(true);
+    setStatus('starting');
+    setErrorMsg('');
+
+    window.__nativeBarcodeResult = (payload) => {
+      if (!mountedRef.current) return;
+      setNativeBusy(false);
+      setStatus('scanning');
+      handleDetected(payload?.text, payload?.format);
+    };
+    window.__nativeBarcodeCancelled = () => {
+      if (!mountedRef.current) return;
+      setNativeBusy(false);
+      // User backed out of the native scanner — just sit idle, they can tap
+      // "Scan" again rather than being dropped into an error state.
+      setStatus('starting');
+    };
+
+    window.PosNativeBridge.scanBarcode();
+
+    return () => {
+      delete window.__nativeBarcodeResult;
+      delete window.__nativeBarcodeCancelled;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, mode]);
 
   // ---- useEffect for opening/closing ----
   useEffect(() => {
@@ -148,13 +239,16 @@ const BarcodeScannerModal = ({
       // Cleanup will run when component unmounts or isOpen becomes false.
       // We call stopScanner (not awaited) to stop and clear the scanner.
       stopScanner();
+      if (fileScannerRef.current) {
+        fileScannerRef.current.clear().catch(() => {});
+        fileScannerRef.current = null;
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    if (!isOpen) {
-      // If modal is closed, stop scanner and clean up
+    if (!isOpen || mode !== 'live') {
       stopScanner();
       return;
     }
@@ -208,7 +302,7 @@ const BarcodeScannerModal = ({
       stopScanner();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, readerId, startScanner, stopScanner]);
+  }, [isOpen, mode, readerId, startScanner, stopScanner]);
 
   // ---- Retry ----
   const retry = () => {
@@ -277,11 +371,96 @@ const BarcodeScannerModal = ({
           </button>
         </div>
 
+        {/* Hidden file input backing photo mode — capture="environment" opens
+            the native camera app directly rather than requesting a live
+            MediaStream, so it isn't blocked on HTTP/LAN-IP origins. */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={(e) => handlePhotoFile(e.target.files?.[0])}
+        />
+
+        {mode === 'photo' && (hasNativeScanner || canUseLiveCamera) && (
+          <button
+            onClick={() => setMode(hasNativeScanner ? 'native' : 'live')}
+            className="text-xs text-blue-600 underline px-4 pt-2 text-left"
+          >
+            {hasNativeScanner ? 'Try app camera instead' : 'Try live camera instead'}
+          </button>
+        )}
+        {mode === 'live' && (
+          <button
+            onClick={() => setMode('photo')}
+            className="text-xs text-blue-600 underline px-4 pt-2 text-left"
+          >
+            Camera not working? Take a photo instead
+          </button>
+        )}
+        {mode === 'native' && (
+          <button
+            onClick={() => setMode(canUseLiveCamera ? 'live' : 'photo')}
+            className="text-xs text-blue-600 underline px-4 pt-2 text-left"
+          >
+            Camera not working? Take a photo instead
+          </button>
+        )}
+
         {/* Camera view */}
         <div className="flex-1 bg-black relative overflow-hidden" style={{ minHeight: '320px' }}>
           <div id={readerId} className="w-full h-full [&_video]:w-full [&_video]:h-full [&_video]:object-cover" />
 
-          {status === 'starting' && (
+          {mode === 'native' && !nativeBusy && (
+            <div className="absolute inset-0 flex items-center justify-center text-white bg-black bg-opacity-40">
+              <div className="text-center px-6">
+                <Camera className="w-10 h-10 mx-auto mb-3" />
+                <p className="text-sm mb-4">Ready to scan with the app's camera.</p>
+                <button
+                  onClick={() => window.PosNativeBridge.scanBarcode()}
+                  className="px-4 py-2 bg-blue-600 rounded-lg text-sm font-medium"
+                >
+                  Scan
+                </button>
+              </div>
+            </div>
+          )}
+
+          {mode === 'native' && nativeBusy && (
+            <div className="absolute inset-0 flex items-center justify-center text-white bg-black bg-opacity-40 pointer-events-none">
+              <div className="text-center">
+                <Camera className="w-10 h-10 mx-auto mb-2 animate-pulse" />
+                <p className="text-sm">Opening camera...</p>
+              </div>
+            </div>
+          )}
+
+          {mode === 'photo' && !photoBusy && (
+            <div className="absolute inset-0 flex items-center justify-center text-white bg-black bg-opacity-40">
+              <div className="text-center px-6">
+                <Camera className="w-10 h-10 mx-auto mb-3" />
+                <p className="text-sm mb-4">Take a photo of the barcode — works without HTTPS.</p>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-4 py-2 bg-blue-600 rounded-lg text-sm font-medium"
+                >
+                  Open Camera
+                </button>
+              </div>
+            </div>
+          )}
+
+          {mode === 'photo' && photoBusy && (
+            <div className="absolute inset-0 flex items-center justify-center text-white bg-black bg-opacity-40 pointer-events-none">
+              <div className="text-center">
+                <Camera className="w-10 h-10 mx-auto mb-2 animate-pulse" />
+                <p className="text-sm">Reading barcode...</p>
+              </div>
+            </div>
+          )}
+
+          {mode === 'live' && status === 'starting' && (
             <div className="absolute inset-0 flex items-center justify-center text-white bg-black bg-opacity-40 pointer-events-none">
               <div className="text-center">
                 <Camera className="w-10 h-10 mx-auto mb-2 animate-pulse" />
@@ -295,8 +474,15 @@ const BarcodeScannerModal = ({
               <div className="text-center">
                 <AlertCircle className="w-10 h-10 mx-auto mb-2 text-red-400" />
                 <p className="text-sm mb-3">{errorMsg}</p>
-                <button onClick={retry} className="px-4 py-2 bg-blue-600 rounded-lg text-sm font-medium">
-                  Retry
+                <button
+                  onClick={
+                    mode === 'photo' ? () => fileInputRef.current?.click()
+                    : mode === 'native' ? () => window.PosNativeBridge.scanBarcode()
+                    : retry
+                  }
+                  className="px-4 py-2 bg-blue-600 rounded-lg text-sm font-medium"
+                >
+                  {mode === 'photo' ? 'Take Another Photo' : mode === 'native' ? 'Scan Again' : 'Retry'}
                 </button>
               </div>
             </div>
