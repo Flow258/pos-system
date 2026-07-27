@@ -6,12 +6,20 @@ const ProductModal = ({ editingProduct, setEditingProduct, setShowProductModal, 
     <div className="bg-white rounded-t-2xl sm:rounded-lg shadow-xl w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] flex flex-col">
       
       {/* Header */}
-      <div className="p-4 sm:p-6 border-b shrink-0 flex justify-between items-center">
-        <h2 className="text-lg sm:text-2xl font-bold">{editingProduct ? 'Edit Product' : 'Add New Product'}</h2>
+      <div className="p-4 sm:p-6 border-b shrink-0 flex justify-between items-center gap-3">
+        <div className="min-w-0">
+          <h2 className="text-lg sm:text-2xl font-bold">{editingProduct ? 'Edit Product' : 'Add New Product'}</h2>
+          {editingProduct && (
+            <p className="text-xs sm:text-sm text-gray-500 mt-0.5 truncate">
+              {editingProduct.name}
+              {editingProduct.category ? ` · ${editingProduct.category}` : ''}
+            </p>
+          )}
+        </div>
         <button 
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => { setShowProductModal(false); setEditingProduct(null); resetProductForm(); }} 
-          className="text-gray-500 hover:text-gray-700 active:scale-90 p-1"
+          className="text-gray-500 hover:text-gray-700 active:scale-90 p-1 shrink-0"
         >
           <X className="w-6 h-6" />
         </button>
