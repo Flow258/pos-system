@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShoppingCart, Barcode, Trash2, Minus, Plus, X, DollarSign, CreditCard, Smartphone, Loader, ExternalLink, Undo2, Camera } from 'lucide-react';
+import { ShoppingCart, Barcode, Trash2, Minus, Plus, X, DollarSign, CreditCard, Smartphone, Loader, ExternalLink, Undo2, Camera, Settings } from 'lucide-react';
 import Receipt from './Receipt';
 
 const SalesInterface = ({
@@ -20,6 +20,12 @@ const SalesInterface = ({
   setAmountPaid,
   calculateTotal,
   calculateChange,
+  calculateUtangSurcharge,
+  calculateGrandTotal,
+  utangSurchargeEnabled,
+  setUtangSurchargeEnabled,
+  utangSurchargePerItem,
+  setUtangSurchargePerItem,
   completeSale,
   setShowBarcodeScanner,
   gcashPayment,
@@ -82,6 +88,8 @@ const SalesInterface = ({
     }
     setGcashPayment(null);
   };
+
+  const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
     <>
@@ -295,6 +303,43 @@ const SalesInterface = ({
             </div>
           )}
 
+          {paymentMethod === 'credit' && (
+            <div className="mb-3 sm:mb-4 p-3 bg-orange-50 rounded-lg border border-orange-200">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <span className="text-xs sm:text-sm text-orange-800 font-medium flex items-center gap-2">
+                  <Settings className="w-4 h-4" /> Utang surcharge
+                </span>
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => setUtangSurchargeEnabled(!utangSurchargeEnabled)}
+                  className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${utangSurchargeEnabled ? 'bg-orange-500' : 'bg-gray-300'}`}
+                  title={utangSurchargeEnabled ? 'Surcharge enabled — tap to disable' : 'Surcharge disabled — tap to enable'}
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${utangSurchargeEnabled ? 'translate-x-5' : ''}`} />
+                </button>
+              </div>
+              <div className={`flex items-center gap-2 ${utangSurchargeEnabled ? '' : 'opacity-50 pointer-events-none'}`}>
+                <span className="text-xs sm:text-sm text-orange-800">₱</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="0.5"
+                  value={utangSurchargePerItem}
+                  onChange={(e) => setUtangSurchargePerItem(e.target.value)}
+                  onBlur={(e) => barcodeInputRef.current?.focus()}
+                  className="w-20 px-2 py-1 border rounded text-sm focus:outline-none focus:border-orange-500"
+                />
+                <span className="text-xs sm:text-sm text-orange-800">
+                  per item{utangSurchargeEnabled && cart.length > 0 && (
+                    <> — {cartItemCount} item{cartItemCount === 1 ? '' : 's'}, +₱{calculateUtangSurcharge().toFixed(2)}</>
+                  )}
+                </span>
+              </div>
+            </div>
+          )}
+
           {paymentMethod === 'gcash' && (
             <div className="mb-3 sm:mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
               <p className="text-xs sm:text-sm text-blue-800 flex items-center gap-2">
@@ -325,10 +370,18 @@ const SalesInterface = ({
                 </>
               )}
               {paymentMethod === 'credit' && (
-                <div className="flex justify-between text-xl sm:text-2xl font-bold pt-2 border-t mt-2">
-                  <span>Total (Credit):</span>
-                  <span className="text-orange-600">₱{calculateTotal().toFixed(2)}</span>
-                </div>
+                <>
+                  {calculateUtangSurcharge() > 0 && (
+                    <div className="flex justify-between text-sm sm:text-lg">
+                      <span className="text-orange-700">Utang surcharge:</span>
+                      <span className="font-medium text-orange-700">+₱{calculateUtangSurcharge().toFixed(2)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-xl sm:text-2xl font-bold pt-2 border-t mt-2">
+                    <span>Total (Credit):</span>
+                    <span className="text-orange-600">₱{calculateGrandTotal().toFixed(2)}</span>
+                  </div>
+                </>
               )}
               {paymentMethod === 'gcash' && (
                 <div className="flex justify-between text-xl sm:text-2xl font-bold pt-2 border-t mt-2">
