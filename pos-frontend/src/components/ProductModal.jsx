@@ -1,7 +1,120 @@
-import React from 'react';
-import { X, Plus, Trash2, Save, Camera } from 'lucide-react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { X, Plus, Trash2, Save, Camera, Tag, ChevronDown, Check, Search } from 'lucide-react';
 
-const ProductModal = ({ editingProduct, setEditingProduct, setShowProductModal, productForm, setProductForm, saveProduct, resetProductForm, addProductUnit, removeProductUnit, updateProductUnit, onScanBarcode }) => (
+// Default starter categories shown even before any products exist.
+const DEFAULT_CATEGORIES = ['Snacks', 'Beverages', 'Canned Goods', 'Toiletries', 'Household', 'Frozen', 'Condiments', 'School Supplies', 'Cigarettes', 'Load & E-Load'];
+
+const CategoryPicker = ({ value, onChange, products = [] }) => {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const wrapperRef = useRef(null);
+
+  const categories = useMemo(() => {
+    const fromProducts = products.map(p => p.category).filter(Boolean);
+    return [...new Set([...DEFAULT_CATEGORIES, ...fromProducts])].sort((a, b) => a.localeCompare(b));
+  }, [products]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return categories;
+    return categories.filter(c => c.toLowerCase().includes(q));
+  }, [categories, query]);
+
+  const canCreate = query.trim() && !categories.some(c => c.toLowerCase() === query.trim().toLowerCase());
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClickOutside = (e) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
+        setOpen(false);
+        setQuery('');
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [open]);
+
+  const choose = (cat) => {
+    onChange(cat);
+    setOpen(false);
+    setQuery('');
+  };
+
+  return (
+    <div className="relative" ref={wrapperRef}>
+      <button
+        type="button"
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => setOpen(o => !o)}
+        className="w-full px-3 py-2 border rounded-lg text-sm bg-white flex items-center justify-between gap-2 focus:outline-none focus:border-blue-500"
+      >
+        <span className={`flex items-center gap-2 min-w-0 ${value ? 'text-gray-900' : 'text-gray-400'}`}>
+          <Tag className="w-4 h-4 shrink-0 text-gray-400" />
+          <span className="truncate">{value || 'Select a category'}</span>
+        </span>
+        <ChevronDown className={`w-4 h-4 shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="absolute z-10 mt-1 w-full bg-white border rounded-lg shadow-lg overflow-hidden">
+          <div className="p-2 border-b flex items-center gap-2">
+            <Search className="w-4 h-4 text-gray-400 shrink-0" />
+            <input
+              autoFocus
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search or type a new category..."
+              className="w-full text-sm focus:outline-none"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && canCreate) { e.preventDefault(); choose(query.trim()); }
+              }}
+            />
+          </div>
+          <div className="max-h-48 overflow-y-auto py-1">
+            {value && (
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => choose('')}
+                className="w-full text-left px-3 py-2 text-sm text-gray-500 hover:bg-gray-50 flex items-center gap-2"
+              >
+                <span className="w-4 h-4 shrink-0" /> Clear category
+              </button>
+            )}
+            {filtered.map(cat => (
+              <button
+                key={cat}
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => choose(cat)}
+                className={`w-full text-left px-3 py-2 text-sm hover:bg-blue-50 flex items-center gap-2 ${cat === value ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'}`}
+              >
+                <Check className={`w-4 h-4 shrink-0 ${cat === value ? 'opacity-100' : 'opacity-0'}`} />
+                <span className="truncate">{cat}</span>
+              </button>
+            ))}
+            {filtered.length === 0 && !canCreate && (
+              <p className="px-3 py-2 text-sm text-gray-400">No matching categories</p>
+            )}
+            {canCreate && (
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => choose(query.trim())}
+                className="w-full text-left px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 flex items-center gap-2 border-t"
+              >
+                <Plus className="w-4 h-4 shrink-0" /> Create "{query.trim()}"
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const ProductModal = ({ editingProduct, setEditingProduct, setShowProductModal, productForm, setProductForm, saveProduct, resetProductForm, addProductUnit, removeProductUnit, updateProductUnit, onScanBarcode, products }) => (
   <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
     <div className="bg-white rounded-t-2xl sm:rounded-lg shadow-xl w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] flex flex-col">
       
@@ -34,7 +147,11 @@ const ProductModal = ({ editingProduct, setEditingProduct, setShowProductModal, 
           </div>
           <div>
             <label className="block text-xs sm:text-sm font-medium mb-1">Category</label>
-            <input type="text" value={productForm.category} onChange={(e) => setProductForm({ ...productForm, category: e.target.value })} className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-blue-500 text-sm" />
+            <CategoryPicker
+              value={productForm.category}
+              onChange={(cat) => setProductForm({ ...productForm, category: cat })}
+              products={products}
+            />
           </div>
         </div>
         
