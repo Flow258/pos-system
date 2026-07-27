@@ -150,6 +150,12 @@ export default function Receipt({ receipt, onClose }) {
                     <td style={{ textAlign: "right" }}>-{fmt(receipt.discount)}</td>
                   </tr>
                 )}
+                {receipt.utang_surcharge > 0 && (
+                  <tr>
+                    <td style={{ color: "#c2410c" }}>Utang Surcharge</td>
+                    <td style={{ textAlign: "right", color: "#c2410c" }}>+{fmt(receipt.utang_surcharge)}</td>
+                  </tr>
+                )}
                 <tr>
                   <td><strong>TOTAL</strong></td>
                   <td style={{ textAlign: "right" }}><strong>{fmt(receipt.total)}</strong></td>
