@@ -147,15 +147,20 @@ const InventoryInterface = ({ products, editProduct, resetProductForm, setEditin
 
   const exportToCSV = () => {
     if (products.length === 0) { alert('No products to export!'); return; }
-    const headers = ['Product Name', 'Description', 'Category', 'Stock Quantity', 'Low Stock Threshold', 'Unit Name', 'Barcode', 'Price', 'Price Type'];
+    const headers = ['Product Name', 'Description', 'Category', 'Stock Quantity', 'Low Stock Threshold', 'Unit Name', 'Barcode', 'Price', 'Cost Price', 'Price Type'];
+    // Excel auto-detects long digit strings as numbers and reformats them
+    // in scientific notation (e.g. 207461... -> 2.07461E+12), even inside a
+    // quoted CSV field. Wrapping the value as ="..." forces Excel to treat
+    // it as a literal text formula instead, so barcodes stay intact.
+    const csvBarcode = (barcode) => barcode ? `"=""${barcode}"""` : '""';
     const rows = [];
     products.forEach(p => {
       if (p.product_units && p.product_units.length > 0) {
         p.product_units.forEach(u => {
-          rows.push([`"${p.name || ''}"`, `"${p.description || ''}"`, `"${p.category || ''}"`, p.stock_quantity || 0, p.low_stock_threshold || 0, `"${u.unit_name || ''}"`, `"${u.barcode || ''}"`, u.price || 0, `"${u.price_type || ''}"`].join(','));
+          rows.push([`"${p.name || ''}"`, `"${p.description || ''}"`, `"${p.category || ''}"`, p.stock_quantity || 0, p.low_stock_threshold || 0, `"${u.unit_name || ''}"`, csvBarcode(u.barcode), u.price || 0, u.cost_price || 0, `"${u.price_type || ''}"`].join(','));
         });
       } else {
-        rows.push([`"${p.name || ''}"`, `"${p.description || ''}"`, `"${p.category || ''}"`, p.stock_quantity || 0, p.low_stock_threshold || 0, '', '', '', ''].join(','));
+        rows.push([`"${p.name || ''}"`, `"${p.description || ''}"`, `"${p.category || ''}"`, p.stock_quantity || 0, p.low_stock_threshold || 0, '', '', '', '', ''].join(','));
       }
     });
     const csvContent = [headers.join(','), ...rows].join('\n');
@@ -195,7 +200,15 @@ const InventoryInterface = ({ products, editProduct, resetProductForm, setEditin
           productsMap[productName] = { name: productName, description: row['Description'] || '', category: row['Category'] || '', stock_quantity: row['Stock Quantity'] || '0', low_stock_threshold: row['Low Stock Threshold'] || '10', units: [] };
         }
         if (row['Unit Name']) {
-          productsMap[productName].units.push({ unit_name: row['Unit Name'], barcode: row['Barcode'] || '', price: row['Price'] || '0', price_type: row['Price Type'] || 'retail', conversion_factor: '1' });
+          // Strip the ="..." text-formula wrapper our own export adds to
+          // protect barcodes from Excel's scientific-notation reformatting.
+          // After the CSV line-parser's outer-quote strip, an exported cell
+          // looks like =""1234567890123"" (doubled quotes from CSV escaping),
+          // so peel off a leading = and any quotes on either side. Plain
+          // barcodes from non-exported CSVs (no leading =) pass through unchanged.
+          const rawBarcode = row['Barcode'] || '';
+          const barcode = rawBarcode.replace(/^="*/, '').replace(/"*$/, '');
+          productsMap[productName].units.push({ unit_name: row['Unit Name'], barcode, price: row['Price'] || '0', cost_price: row['Cost Price'] || '0', price_type: row['Price Type'] || 'retail', conversion_factor: '1' });
         }
       }
       const parsedProducts = Object.values(productsMap);
