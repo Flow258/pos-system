@@ -51,6 +51,23 @@ const POSSystem = () => {
 
   const [gcashPayment, setGcashPayment] = useState(null);
 
+  // Utang (credit) surcharge settings — adds a fixed peso amount per item when paying on credit.
+  const [utangSurchargeEnabled, setUtangSurchargeEnabled] = useState(() => {
+    const saved = localStorage.getItem('utangSurchargeEnabled');
+    return saved === null ? true : saved === 'true';
+  });
+  const [utangSurchargePerItem, setUtangSurchargePerItem] = useState(() => {
+    return localStorage.getItem('utangSurchargePerItem') || '2';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('utangSurchargeEnabled', String(utangSurchargeEnabled));
+  }, [utangSurchargeEnabled]);
+
+  useEffect(() => {
+    localStorage.setItem('utangSurchargePerItem', utangSurchargePerItem);
+  }, [utangSurchargePerItem]);
+
   const [productForm, setProductForm] = useState({
     name: '',
     description: '',
@@ -308,10 +325,21 @@ const POSSystem = () => {
 
   const calculateTotal = () => cart.reduce((sum, item) => sum + (parseFloat(item.price) * item.quantity), 0);
 
-  const calculateChange = () => (parseFloat(amountPaid) || 0) - calculateTotal();
+  const calculateCartItemCount = () => cart.reduce((sum, item) => sum + item.quantity, 0);
+
+  const calculateUtangSurcharge = () =>
+    (paymentMethod === 'credit' && utangSurchargeEnabled)
+      ? calculateCartItemCount() * (parseFloat(utangSurchargePerItem) || 0)
+      : 0;
+
+  const calculateGrandTotal = () => calculateTotal() + calculateUtangSurcharge();
+
+  const calculateChange = () => (parseFloat(amountPaid) || 0) - calculateGrandTotal();
 
   const completeSale = async () => {
-    const total = calculateTotal();
+    const subtotal = calculateTotal();
+    const surcharge = calculateUtangSurcharge();
+    const total = subtotal + surcharge;
     const paid  = parseFloat(amountPaid) || 0;
 
     if (cart.length === 0) { showNotification('Cart is empty', 'error'); return null; }
@@ -365,8 +393,9 @@ const POSSystem = () => {
           qty:       item.quantity,
           price:     parseFloat(item.price),
         })),
-        subtotal:      total,
+        subtotal:      total - surcharge,
         discount:      0,
+        utang_surcharge: surcharge,
         total:         total,
         cash_tendered: paymentMethod === 'credit' || paymentMethod === 'gcash' ? 0 : paid,
         change:        paymentMethod === 'credit' || paymentMethod === 'gcash' ? 0 : calculateChange(),
@@ -653,6 +682,12 @@ const POSSystem = () => {
             setAmountPaid={setAmountPaid}
             calculateTotal={calculateTotal}
             calculateChange={calculateChange}
+            calculateUtangSurcharge={calculateUtangSurcharge}
+            calculateGrandTotal={calculateGrandTotal}
+            utangSurchargeEnabled={utangSurchargeEnabled}
+            setUtangSurchargeEnabled={setUtangSurchargeEnabled}
+            utangSurchargePerItem={utangSurchargePerItem}
+            setUtangSurchargePerItem={setUtangSurchargePerItem}
             completeSale={completeSale}
             setShowVisionScanner={setShowVisionScanner}
             setShowBarcodeScanner={setShowBarcodeScanner}
