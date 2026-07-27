@@ -746,6 +746,7 @@ const POSSystem = () => {
           removeProductUnit={removeProductUnit}
           updateProductUnit={updateProductUnit}
           onScanBarcode={(index) => { setScanningUnitIndex(index); setShowBarcodeScanner(true); }}
+          products={products}
         />
       )}
       {showCustomerModal && (
