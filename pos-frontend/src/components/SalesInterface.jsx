@@ -32,6 +32,7 @@ const SalesInterface = ({
   setGcashPayment
 }) => {
   const [receipt, setReceipt] = useState(null);
+  const [isCompletingSale, setIsCompletingSale] = useState(false);
 
   // Auto-focus the barcode scanner ONLY when the Sales tab is first opened
   useEffect(() => {
@@ -53,9 +54,15 @@ const SalesInterface = ({
   }, [setPaymentMethod]);
 
   const handleCompleteSale = async () => {
-    const result = await completeSale();
-    if (result) {
-      setReceipt(result);
+    if (isCompletingSale) return; // guard against double-clicks / double-Enter while a sale is already in flight
+    setIsCompletingSale(true);
+    try {
+      const result = await completeSale();
+      if (result) {
+        setReceipt(result);
+      }
+    } finally {
+      setIsCompletingSale(false);
     }
   };
 
@@ -396,10 +403,17 @@ const SalesInterface = ({
             <button
               onMouseDown={(e) => e.preventDefault()} // Prevents stealing focus
               onClick={handleCompleteSale}
-              disabled={cart.length === 0}
-              className={`w-full py-3 sm:py-4 rounded-lg font-semibold text-white text-base sm:text-lg transition-colors ${cart.length === 0 ? 'bg-gray-300 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 active:scale-95'}`}
+              disabled={cart.length === 0 || isCompletingSale}
+              className={`w-full py-3 sm:py-4 rounded-lg font-semibold text-white text-base sm:text-lg transition-colors flex items-center justify-center gap-2 ${(cart.length === 0 || isCompletingSale) ? 'bg-gray-300 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 active:scale-95'}`}
             >
-              {paymentMethod === 'gcash' ? 'Pay with GCash' : 'Complete Sale'}
+              {isCompletingSale ? (
+                <>
+                  <Loader className="w-5 h-5 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                paymentMethod === 'gcash' ? 'Pay with GCash' : 'Complete Sale'
+              )}
             </button>
           </div>
         </div>
