@@ -4,7 +4,7 @@ services:
     container_name: pos_mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: your_pass
+      MYSQL_ROOT_PASSWORD: AshleyDave_09157652245
       MYSQL_DATABASE: pos_system
       # REMOVED: MYSQL_USER and MYSQL_PASSWORD - they conflict with root
     ports:
@@ -34,7 +34,7 @@ services:
       DB_PORT: 3306
       DB_DATABASE: pos_system
       DB_USERNAME: root
-      DB_PASSWORD: your_pass
+      DB_PASSWORD: AshleyDave_09157652245
       CACHE_DRIVER: file
       SESSION_DRIVER: file
       PAYMONGO_SECRET_KEY: "${PAYMONGO_SECRET_KEY}"
@@ -94,7 +94,7 @@ services:
       PMA_HOST: mysql
       PMA_PORT: 3306
       PMA_USER: root
-      PMA_PASSWORD: your_pass
+      PMA_PASSWORD: AshleyDave_09157652245
     depends_on:
       - mysql
     networks:
