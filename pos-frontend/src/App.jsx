@@ -735,20 +735,6 @@ const POSSystem = () => {
         )}
       </main>
 
-      {/* ── NEW: Footer ── */}
-      <footer className="w-full max-w-7xl mx-auto px-4 py-6 text-center text-gray-500 border-t border-gray-200 mt-4">
-        <p className="text-sm font-medium text-gray-600 mb-1">Made by Alquizalas, Ashley Dave N.</p>
-        <div className="flex justify-center gap-4 text-xs">
-          <a href="https://ash-alquizalas.vercel.app/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 hover:underline transition-colors">
-            Portfolio
-          </a>
-          <span className="text-gray-300">|</span>
-          <a href="https://github.com/Flow258?tab=repositories" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 hover:underline transition-colors">
-            GitHub
-          </a>
-        </div>
-      </footer>
-
       {showVisionScanner && (
         <VisionScannerModal
           isOpen={showVisionScanner}
